@@ -19,18 +19,19 @@
  *
  */
 
+use nix::libc;
 use std::fs::File;
 use std::io::{self, Seek, SeekFrom};
 use std::os::unix::prelude::*;
 use super::{PAGE_SIZE, Error, Result};
 
 mod ioctl {
-    ioctl!(read blkgetsize64 with 0x12, 114; u64);
-
-    // ior!(0x12, 114, u64);
+    const BLK: u8 = 0x12;
+    ioctl!(read blkgetsize64 with BLK, 114; u64);
+    ioctl!(none blkdiscard with BLK, 119);
 }
 
-fn get_capacity(fh: &mut File) -> Result<u64> {
+fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
     let metadata = fh.metadata()?;
     let ftype = metadata.file_type();
 
@@ -40,11 +41,14 @@ fn get_capacity(fh: &mut File) -> Result<u64> {
             ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity)
         };
         match result {
-            Ok(_) => Ok(capacity),
+            Ok(_) => Ok((capacity, true)),
             Err(_) => Err(Error::Io),
         }
     } else if ftype.is_file() {
-        fh.seek(SeekFrom::End(0)).map_err(|_| Error::Io)
+        match fh.seek(SeekFrom::End(0)) {
+            Ok(capacity) => Ok((capacity, false)),
+            Err(_) => Err(Error::Io),
+        }
     } else {
         Err(Error::FileType)
     }
@@ -54,15 +58,17 @@ fn get_capacity(fh: &mut File) -> Result<u64> {
 pub struct Device {
     fh: File,
     capacity: u64,
+    block: bool,
 }
 
 impl Device {
     pub fn new(mut fh: File) -> Result<Self> {
-        let capacity = get_capacity(&mut fh)?;
+        let (capacity, block) = get_metadata(&mut fh)?;
 
         Ok(Device {
             fh: fh,
             capacity: capacity,
+            block: block,
         })
     }
 
@@ -93,6 +99,33 @@ impl Device {
                 Ok(())
             },
             Err(_) => Err(Error::Io),
+        }
+    }
+
+    pub fn trim(&self, off: u64, len: u64) -> Result<()> {
+        assert_eq!(off % PAGE_SIZE, 0, "Offset not a multiple of the page size");
+        assert_eq!(len % PAGE_SIZE, 0, "Length not a multiple of the page size");
+        assert!(off + len < self.capacity, "Trim is out of bounds");
+
+        let fd = self.fh.as_raw_fd();
+        if self.block {
+            let tuple = [off, len];
+            // TODO
+            // ioctl::blkdiscard()
+            unimplemented!();
+        } else {
+            let ret = unsafe {
+                libc::fallocate(
+                    fd as libc::c_int,
+                    0x01 | 0x02,
+                    off as libc::off_t,
+                    len as libc::off_t)
+            };
+
+            match ret {
+                0 => Ok(()),
+                _ => Err(Error::Io),
+            }
         }
     }
 }
