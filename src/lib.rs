@@ -1,7 +1,7 @@
 /*
  * lib.rs
  *
- * striking-db - Odin library for performing high-performance operations on SSDs
+ * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
  *
  * striking-db is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@
  * License along with striking-db.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+
 
 pub use store::Store;
 
