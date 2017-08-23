@@ -37,9 +37,7 @@ fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
 
     if ftype.is_block_device() {
         let mut capacity = 0;
-        let result = unsafe {
-            ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity)
-        };
+        let result = unsafe { ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity) };
 
         match result {
             Ok(_) => Ok((capacity, true)),
@@ -83,7 +81,7 @@ impl Device {
             Ok(read) => {
                 assert_eq!(read, buf.len(), "Did not read full buffer");
                 Ok(())
-            },
+            }
             Err(_) => Err(Error::Io),
         }
     }
@@ -98,7 +96,7 @@ impl Device {
             Ok(written) => {
                 assert_eq!(written, buf.len(), "Did not write full buffer");
                 Ok(())
-            },
+            }
             Err(_) => Err(Error::Io),
         }
     }
@@ -111,9 +109,7 @@ impl Device {
         if self.block {
             // TODO
             let tuple = [off, len];
-            let result = unsafe {
-                ioctl::blkdiscard(self.fh.as_raw_fd(), &[tuple])
-            };
+            let result = unsafe { ioctl::blkdiscard(self.fh.as_raw_fd(), &[tuple]) };
 
             match result {
                 Ok(_) => Ok(()),

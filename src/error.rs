@@ -39,7 +39,9 @@ impl Error for SError {
         }
     }
 
-    fn cause(&self) -> Option<&Error> { None }
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
 }
 
 impl Display for SError {
