@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * strand.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,9 +19,4 @@
  *
  */
 
-pub use store::Store;
-
-mod device;
-mod store;
-mod strand;
-
+pub struct Strand;
