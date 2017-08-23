@@ -28,7 +28,7 @@ use super::{PAGE_SIZE, Error, Result};
 mod ioctl {
     const BLK: u8 = 0x12;
     ioctl!(read blkgetsize64 with BLK, 114; u64);
-    ioctl!(none blkdiscard with BLK, 119);
+    ioctl!(write_buf blkdiscard with BLK, 119; [u64; 2]);
 }
 
 fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
@@ -40,6 +40,7 @@ fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
         let result = unsafe {
             ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity)
         };
+
         match result {
             Ok(_) => Ok((capacity, true)),
             Err(_) => Err(Error::Io),
@@ -107,19 +108,25 @@ impl Device {
         assert_eq!(len % PAGE_SIZE, 0, "Length not a multiple of the page size");
         assert!(off + len < self.capacity, "Trim is out of bounds");
 
-        let fd = self.fh.as_raw_fd();
         if self.block {
-            let tuple = [off, len];
             // TODO
-            // ioctl::blkdiscard()
-            unimplemented!();
+            let tuple = [off, len];
+            let result = unsafe {
+                ioctl::blkdiscard(self.fh.as_raw_fd(), &[tuple])
+            };
+
+            match result {
+                Ok(_) => Ok(()),
+                Err(_) => Err(Error::Io),
+            }
         } else {
             let ret = unsafe {
                 libc::fallocate(
-                    fd as libc::c_int,
+                    self.fh.as_raw_fd(),
                     0x01 | 0x02,
                     off as libc::off_t,
-                    len as libc::off_t)
+                    len as libc::off_t,
+                )
             };
 
             match ret {
