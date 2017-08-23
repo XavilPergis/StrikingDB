@@ -19,4 +19,24 @@
  *
  */
 
-pub struct Store;
+use index::Index;
+use std::io::{self, Write};
+
+pub struct Store {
+    index: Index,
+}
+
+impl Store {
+    pub fn new() -> Self {
+        // TODO
+        Store { index: Index::new() }
+    }
+
+    pub fn lookup<K, W>(&self, key: K, buffer: W) -> io::Result<()>
+    where
+        K: AsRef<[u8]>,
+        W: Write,
+    {
+        Ok(())
+    }
+}

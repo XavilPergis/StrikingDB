@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * index.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,13 +19,13 @@
  *
  */
 
-mod store;
-mod index;
+use std::collections::BTreeMap;
+use super::FilePointer;
 
-pub use store::Store;
+pub struct Index(BTreeMap<Box<[u8]>, FilePointer>);
 
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+impl Index {
+    pub fn new() -> Self {
+        Index(BTreeMap::new())
+    }
+}
