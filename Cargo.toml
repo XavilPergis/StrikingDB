@@ -4,3 +4,6 @@ version = "0.0.1"
 authors = ["Ammon Smith <ammon.i.smith@gmail.com>"]
 
 [dependencies]
+
+[target.'cfg(unix)'.dependencies]
+nix = "0.9"

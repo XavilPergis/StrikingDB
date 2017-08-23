@@ -19,9 +19,19 @@
  *
  */
 
-pub use store::Store;
+#[cfg(unix)]
+#[macro_use]
+extern crate nix;
 
-mod device;
+mod error;
 mod store;
 mod strand;
 
+#[cfg(unix)]
+mod unix_device;
+
+pub use error::SError as Error;
+pub use error::SResult as Result;
+pub use store::Store;
+
+const PAGE_SIZE: u64 = 4096;

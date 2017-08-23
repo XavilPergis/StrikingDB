@@ -1,5 +1,5 @@
 /*
- * device.rs
+ * error.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,4 +19,37 @@
  *
  */
 
-pub struct Device;
+use std::error::Error;
+use std::fmt::{self, Display};
+use std::io;
+
+pub type SResult<T> = Result<T, SError>;
+
+#[derive(Debug)]
+pub enum SError {
+    Io,
+    FileType,
+}
+
+impl Error for SError {
+    fn description(&self) -> &'static str {
+        match *self {
+            SError::Io => "General I/O error",
+            SError::FileType => "Invalid file type",
+        }
+    }
+
+    fn cause(&self) -> Option<&Error> { None }
+}
+
+impl Display for SError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+impl From<io::Error> for SError {
+    fn from(error: io::Error) -> Self {
+        SError::Io
+    }
+}

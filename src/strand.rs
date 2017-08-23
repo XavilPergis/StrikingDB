@@ -19,4 +19,5 @@
  *
  */
 
+#[derive(Debug)]
 pub struct Strand;
