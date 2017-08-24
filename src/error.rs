@@ -33,9 +33,9 @@ pub enum SError {
 }
 
 impl Error for SError {
-    fn description(&self) -> &'static str {
+    fn description(&self) -> &str {
         match self {
-            &SError::Io(_) => "_",
+            &SError::Io(ref err) => err.description(),
             &SError::LowLevel => "Low level I/O operation failure",
             &SError::FileType => "Invalid file type",
         }
