@@ -41,11 +41,3 @@ const MAX_KEY_LEN: usize = 512;
 const MAX_VAL_LEN: usize = 65535;
 
 type FilePointer = u64;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn blk_test() {
-        ;
-    }
-}
