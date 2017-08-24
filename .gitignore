@@ -4,6 +4,7 @@ Cargo.lock
 
 # Misc
 **/*.rs.bk
+**/*.rs.fmt
 .*.swp
 *~
 *.bak
