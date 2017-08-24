@@ -53,7 +53,7 @@ impl Header {
     }
 
     pub fn bytes(&self) -> &[u8] {
-        let ptr: *const u64 = &self.signature;
+        let ptr: *const Self = self;
         unsafe {
             slice::from_raw_parts(ptr as *const u8, mem::size_of::<Self>())
         }
