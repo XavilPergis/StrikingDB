@@ -26,8 +26,6 @@ use std::cmp;
 use std::rc::Rc;
 use super::PAGE_SIZE;
 
-const GiB: u64 = 1024 * 1024 * 1024;
-
 #[derive(Debug, Hash)]
 pub struct StrandPool {
     dev: Rc<Device>,
@@ -36,6 +34,9 @@ pub struct StrandPool {
 
 impl StrandPool {
     pub fn new(dev: Device, count: Option<usize>) -> Self {
+        #[warn(non_upper_case_globals)]
+        const GiB: u64 = 1024 * 1024 * 1024;
+
         let dev = Rc::new(dev);
         let count = match count {
             Some(x) => x as u64,

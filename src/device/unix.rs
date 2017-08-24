@@ -22,7 +22,7 @@
 use nix::libc;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io::{self, Seek, SeekFrom};
+use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::*;
 use super::{PAGE_SIZE, Error, Result};
 
@@ -62,7 +62,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(mut fh: File) -> Result<Self> {
+    pub fn open(mut fh: File) -> Result<Self> {
         let (capacity, block) = get_metadata(&mut fh)?;
 
         Ok(Device {
