@@ -24,6 +24,7 @@
 extern crate nix;
 
 mod error;
+mod index;
 mod store;
 mod strand;
 
@@ -35,3 +36,7 @@ pub use error::SResult as Result;
 pub use store::Store;
 
 const PAGE_SIZE: u64 = 4096;
+const MAX_KEY_LEN: usize = 512;
+const MAX_VAL_LEN: usize = 65535;
+
+type FilePointer = u64;

@@ -1,5 +1,5 @@
 /*
- * store.rs
+ * index.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,25 +19,14 @@
  *
  */
 
-use index::Index;
-use std::io::{self, Write};
+use std::collections::BTreeMap;
+use super::FilePointer;
 
 #[derive(Debug)]
-pub struct Store {
-    index: Index,
-}
+pub struct Index(BTreeMap<Box<[u8]>, FilePointer>);
 
-impl Store {
+impl Index {
     pub fn new() -> Self {
-        // TODO
-        Store { index: Index::new() }
-    }
-
-    pub fn lookup<K, W>(&self, key: K, buffer: W) -> io::Result<()>
-    where
-        K: AsRef<[u8]>,
-        W: Write,
-    {
-        Ok(())
+        Index(BTreeMap::new())
     }
 }
