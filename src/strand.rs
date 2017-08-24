@@ -19,5 +19,26 @@
  *
  */
 
+use device::Device;
+use super::PAGE_SIZE;
+
 #[derive(Debug)]
-pub struct Strand;
+pub struct Strand<'a> {
+    dev: &'a Device,
+    off: u64,
+    len: u64,
+}
+
+impl<'a> Strand<'a> {
+    pub fn new(dev: &'a Device, off: u64, len: u64) -> Self {
+        assert_eq!(off % PAGE_SIZE, 0, "Offset is not a multiple of the page size");
+        assert_eq!(len % PAGE_SIZE, 0, "Length is not a multiple of the page size");
+        assert!(off + len >= dev.capacity(), "Strand extends off the boundary of the device");
+
+        Strand {
+            dev: dev,
+            off: off,
+            len: len,
+        }
+    }
+}

@@ -22,6 +22,8 @@
 use device::Device;
 use num_cpus;
 use strand::Strand;
+use std::cmp;
+use super::PAGE_SIZE;
 
 const GiB: u64 = 1024 * 1024 * 1024;
 
@@ -39,8 +41,24 @@ impl StrandPool {
                 8 * num_cpus::get() * gb
             },
         };
-        assert!(count != 0, "Strand count must be nonzero");
+        assert_ne!(count, 0, "Strand count must be nonzero");
         let strands = Vec::with_capacity(count);
+
+        let size = dev.capacity() / count;
+        let size = (size / PAGE_SIZE) * PAGE_SIZE;
+
+        // Allocate strands
+        // The first page is reserved for metadata
+        let mut left = dev.capacity();
+        for i in 0..count {
+            let off = i * size + PAGE_SIZE;
+            let len = cmp::min(size, left);
+            debug_assert_ne!(len, 0, "Length of strand must be nonzero");
+
+            left -= len;
+            strands.append(Strand::new(dev, off, len));
+        }
+        debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
         StrandPool {
             dev: dev,
