@@ -1,5 +1,5 @@
 /*
- * unix_device.rs
+ * device/unix.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith

@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * device/mod.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,33 +19,14 @@
  *
  */
 
-#[macro_use]
-extern crate cfg_if;
-
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
-
-mod device;
-mod error;
-mod index;
-mod store;
-mod strand;
-
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn blk_test() {
-        ;
+cfg_if! {
+    if #[cfg(unix)] {
+        mod unix;
+        pub use self::unix::Device;
+    } else if #[cfg(windows)] {
+        mod windows;
+        pub use self::windows::Device;
     }
 }
+
+use super::{PAGE_SIZE, Error, Result};
