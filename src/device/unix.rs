@@ -41,12 +41,12 @@ fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
 
         match result {
             Ok(_) => Ok((capacity, true)),
-            Err(_) => Err(Error::Io),
+            Err(_) => Err(Error::LowLevel),
         }
     } else if ftype.is_file() {
         match fh.seek(SeekFrom::End(0)) {
             Ok(capacity) => Ok((capacity, false)),
-            Err(_) => Err(Error::Io),
+            Err(e) => Err(Error::Io(e)),
         }
     } else {
         Err(Error::FileType)
@@ -71,6 +71,16 @@ impl Device {
         })
     }
 
+    #[inline]
+    pub fn capacity(&self) -> u64 {
+        self.capacity
+    }
+
+    #[inline]
+    pub fn block(&self) -> bool {
+        self.block
+    }
+
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         let len = buf.len() as u64;
         assert_eq!(off % PAGE_SIZE, 0, "Offset not a multiple of the page size");
@@ -82,7 +92,7 @@ impl Device {
                 assert_eq!(read, buf.len(), "Did not read full buffer");
                 Ok(())
             }
-            Err(_) => Err(Error::Io),
+            Err(e) => Err(Error::Io(e)),
         }
     }
 
@@ -97,7 +107,7 @@ impl Device {
                 assert_eq!(written, buf.len(), "Did not write full buffer");
                 Ok(())
             }
-            Err(_) => Err(Error::Io),
+            Err(e) => Err(Error::Io(e)),
         }
     }
 
@@ -113,7 +123,7 @@ impl Device {
 
             match result {
                 Ok(_) => Ok(()),
-                Err(_) => Err(Error::Io),
+                Err(_) => Err(Error::LowLevel),
             }
         } else {
             let ret = unsafe {
@@ -127,7 +137,7 @@ impl Device {
 
             match ret {
                 0 => Ok(()),
-                _ => Err(Error::Io),
+                _ => Err(Error::LowLevel),
             }
         }
     }

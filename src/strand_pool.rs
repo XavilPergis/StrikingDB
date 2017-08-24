@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * strand_pool.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,28 +19,32 @@
  *
  */
 
-extern crate num_cpus;
+use device::Device;
+use num_cpus;
+use strand::Strand;
 
-#[macro_use]
-extern crate cfg_if;
+const GiB: u64 = 1024 * 1024 * 1024;
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+pub struct StrandPool {
+    dev: Device,
+    strands: Box<[Strand]>,
+}
 
-mod device;
-mod error;
-mod index;
-mod store;
-mod strand;
-mod strand_pool;
+impl StrandPool {
+    pub fn new(dev: Device, count: Option<usize>) -> Self {
+        let count = match count {
+            Some(x) => x,
+            None => {
+                let gb = (dev.capacity() / GiB) as usize;
+                8 * num_cpus::get() * gb
+            },
+        };
+        assert!(count != 0, "Strand count must be nonzero");
+        let strands = Vec::with_capacity(count);
 
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+        StrandPool {
+            dev: dev,
+            strands: strands.into_boxed_slice(),
+        }
+    }
+}
