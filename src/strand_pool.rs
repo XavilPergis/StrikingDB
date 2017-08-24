@@ -28,6 +28,7 @@ use super::PAGE_SIZE;
 
 const GiB: u64 = 1024 * 1024 * 1024;
 
+#[derive(Debug, Hash)]
 pub struct StrandPool {
     dev: Rc<Device>,
     strands: Box<[Strand]>,
