@@ -5,6 +5,7 @@ authors = ["Ammon Smith <ammon.i.smith@gmail.com>"]
 
 [dependencies]
 cfg-if = "0.1"
+lazy_static = "0.2"
 num_cpus = "1.6"
 parking_lot = "0.4"
 

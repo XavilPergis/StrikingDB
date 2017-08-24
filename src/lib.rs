@@ -19,10 +19,12 @@
  *
  */
 
+#[macro_use]
+extern crate cfg_if;
 extern crate num_cpus;
 
 #[macro_use]
-extern crate cfg_if;
+extern crate lazy_static;
 
 #[cfg(unix)]
 #[macro_use]
@@ -30,6 +32,7 @@ extern crate nix;
 
 mod device;
 mod error;
+mod header;
 mod index;
 mod store;
 mod strand;

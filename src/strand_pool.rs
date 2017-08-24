@@ -23,26 +23,28 @@ use device::Device;
 use num_cpus;
 use strand::Strand;
 use std::cmp;
+use std::rc::Rc;
 use super::PAGE_SIZE;
 
 const GiB: u64 = 1024 * 1024 * 1024;
 
 pub struct StrandPool {
-    dev: Device,
+    dev: Rc<Device>,
     strands: Box<[Strand]>,
 }
 
 impl StrandPool {
     pub fn new(dev: Device, count: Option<usize>) -> Self {
+        let dev = Rc::new(dev);
         let count = match count {
-            Some(x) => x,
+            Some(x) => x as u64,
             None => {
-                let gb = (dev.capacity() / GiB) as usize;
-                8 * num_cpus::get() * gb
+                let cores = num_cpus::get() as u64;
+                8 * cores * dev.capacity() / GiB
             },
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
-        let strands = Vec::with_capacity(count);
+        let mut strands = Vec::with_capacity(count as usize);
 
         let size = dev.capacity() / count;
         let size = (size / PAGE_SIZE) * PAGE_SIZE;
@@ -56,7 +58,7 @@ impl StrandPool {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            strands.append(Strand::new(dev, off, len));
+            strands.push(Strand::new(dev.clone(), off, len));
         }
         debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
