@@ -22,7 +22,7 @@
 use device::Device;
 use num_cpus;
 use strand::Strand;
-use std::cmp;
+use std::cmp::{self, Ordering};
 use std::rc::Rc;
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -44,18 +44,18 @@ impl StrandPool {
             Some(x) => x as u64,
             None => {
                 let cores = num_cpus::get() as u64;
-                8 * cores * dev.capacity() / GiB
+                8 * cores * dev.capacity / GiB
             },
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
         let mut strands = Vec::with_capacity(count as usize);
 
-        let size = dev.capacity() / count;
+        let size = dev.capacity / count;
         let size = (size / PAGE_SIZE) * PAGE_SIZE;
 
         // Allocate strands
         // The first page is reserved for metadata
-        let mut left = dev.capacity();
+        let mut left = dev.capacity;
         for i in 0..count {
             let off = i * size + PAGE_SIZE;
             let len = cmp::min(size, left);
@@ -75,18 +75,30 @@ impl StrandPool {
     }
 
     pub fn read(&self, ptr: FilePointer) -> RwLockReadGuard<Strand> {
-        unimplemented!();
-        //self.strands.binary_search_by(
+        // Search for the strand that has this file pointer
+        let result = self.strands.binary_search_by(|strand| {
+            let guard = strand.read();
+            if ptr < (*guard).off {
+                Ordering::Less
+            } else if ptr < (*guard).off + (*guard).len {
+                Ordering::Equal
+            } else {
+                Ordering::Greater
+            }
+        });
+
+        match result {
+            Ok(idx) => self.strands[idx].read(),
+            Err(_) => panic!("File pointer {:x} is not in any strand", ptr),
+        }
     }
 
     pub fn write(&self) -> RwLockWriteGuard<Strand> {
-        lazy_static! {
-            static ref DELAY: Duration = Duration::new(0, 100 * 1000);
-        }
-
+        // Look for the first strand that is available for writing
+        let delay = Duration::new(0, 100 * 1000);
         loop {
             for ref strand in &*self.strands {
-                if let Some(guard) = strand.try_write_for(*DELAY) {
+                if let Some(guard) = strand.try_write_for(delay) {
                     return guard;
                 }
             }
