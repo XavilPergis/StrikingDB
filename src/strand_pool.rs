@@ -24,12 +24,14 @@ use num_cpus;
 use strand::Strand;
 use std::cmp;
 use std::rc::Rc;
-use super::PAGE_SIZE;
+use std::time::Duration;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use super::{PAGE_SIZE, FilePointer};
 
-#[derive(Debug, Hash)]
+#[derive(Debug)]
 pub struct StrandPool {
     dev: Rc<Device>,
-    strands: Box<[Strand]>,
+    strands: Box<[RwLock<Strand>]>,
 }
 
 impl StrandPool {
@@ -60,13 +62,34 @@ impl StrandPool {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            strands.push(Strand::new(dev.clone(), off, len));
+            let strand = Strand::new(dev.clone(), off, len);
+            let lock = RwLock::new(strand);
+            strands.push(lock);
         }
         debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
         StrandPool {
             dev: dev,
             strands: strands.into_boxed_slice(),
+        }
+    }
+
+    pub fn read(&self, ptr: FilePointer) -> RwLockReadGuard<Strand> {
+        unimplemented!();
+        //self.strands.binary_search_by(
+    }
+
+    pub fn write(&self) -> RwLockWriteGuard<Strand> {
+        lazy_static! {
+            static ref DELAY: Duration = Duration::new(0, 100 * 1000);
+        }
+
+        loop {
+            for ref strand in &*self.strands {
+                if let Some(guard) = strand.try_write_for(*DELAY) {
+                    return guard;
+                }
+            }
         }
     }
 }

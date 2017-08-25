@@ -20,5 +20,5 @@
  */
 
 // TODO
-#[derive(Debug, Hash)]
+#[derive(Debug)]
 pub struct Device;

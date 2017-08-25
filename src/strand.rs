@@ -23,7 +23,7 @@ use device::Device;
 use std::rc::Rc;
 use super::PAGE_SIZE;
 
-#[derive(Debug, Hash)]
+#[derive(Debug)]
 pub struct Strand {
     dev: Rc<Device>,
     off: u64,

@@ -21,7 +21,6 @@
 
 use nix::libc;
 use std::fs::File;
-use std::hash::{Hash, Hasher};
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::*;
 use super::{PAGE_SIZE, Error, Result};
@@ -141,14 +140,5 @@ impl Device {
                 _ => Err(Error::LowLevel),
             }
         }
-    }
-}
-
-impl Hash for Device {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let fd = self.fh.as_raw_fd();
-        fd.hash(state);
-        self.capacity.hash(state);
-        self.block.hash(state);
     }
 }
