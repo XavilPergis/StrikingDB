@@ -36,7 +36,7 @@ pub struct Store {
 
 impl Store {
     // Create
-    pub fn load(file: File, options: OpenOptions) -> SResult<Self> {
+    pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
         // TODO
         let pool = StrandPool::new(Device::open(file)?, &options);
         Ok(Store {
@@ -46,32 +46,31 @@ impl Store {
     }
 
     // Read
-    pub fn lookup<K, W>(&self, key: K, buffer: W) -> SResult<()>
-    where
-        K: AsRef<[u8]>,
-        W: Write,
-    {
-        Ok(())
+    pub fn lookup<W: Write>(&self, key: &[u8], value: W) -> SResult<usize> {
+        let ptr = match self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+        let strand = self.pool.read(ptr)?;
+        let item = strand.item(ptr)?;
+        let bytes = item.get_value(value)?;
+        Ok(bytes)
     }
 
     // Update
-    pub fn insert<K: AsRef<[u8]>, V: AsRef<[u8]>>(
-        &mut self,
-        key: &[u8],
-        value: &[u8],
-    ) -> SResult<()> {
-        if self.index.key_exists(key.as_ref()) {
+    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+        if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
 
-        unimplemented!();
+        let strand = self.pool.write()?;
+        let ptr = strand.append(key, value)?;
+        self.index.put(key, ptr)?;
+
+        Ok(())
     }
 
-    pub fn update<K: AsRef<[u8]>, V: AsRef<[u8]>>(
-        &mut self,
-        key: &[u8],
-        value: &[u8],
-    ) -> SResult<()> {
+    pub fn update(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -79,16 +78,16 @@ impl Store {
         unimplemented!()
     }
 
-    pub fn put<K: AsRef<[u8]>, V: AsRef<[u8]>>(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
-        let mut index_map = self.index.index_map();
-        let strand = self.pool.write();
-        // index_map.insert(Vec::from(key).into_boxed_slice(), ptr);
+    pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+        let mut index_map = self.index.lock().index_map();
+        let mut strand = self.pool.write();
+        index_map.insert(Vec::from(key).into_boxed_slice(), ptr);
 
         unimplemented!()
     }
 
     // Delete
-    pub fn delete(&mut self, key: &[u8]) -> SResult<()> {
+    pub fn delete<W: Write>(&mut self, key: &[u8], value: W) -> SResult<()> {
         unimplemented!();
     }
 
