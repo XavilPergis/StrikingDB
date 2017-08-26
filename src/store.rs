@@ -55,7 +55,11 @@ impl Store {
     }
 
     // Update
-    pub fn insert<K: AsRef<[u8]>, V: AsRef<[u8]>>(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert<K: AsRef<[u8]>, V: AsRef<[u8]>>(
+        &mut self,
+        key: &[u8],
+        value: &[u8],
+    ) -> SResult<()> {
         if self.index.key_exists(key.as_ref()) {
             return Err(SError::ItemExists);
         }
@@ -63,7 +67,11 @@ impl Store {
         unimplemented!();
     }
 
-    pub fn update<K: AsRef<[u8]>, V: AsRef<[u8]>>(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn update<K: AsRef<[u8]>, V: AsRef<[u8]>>(
+        &mut self,
+        key: &[u8],
+        value: &[u8],
+    ) -> SResult<()> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }

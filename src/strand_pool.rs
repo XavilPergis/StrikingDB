@@ -51,7 +51,7 @@ impl StrandPool {
             None => {
                 let cores = num_cpus::get() as u64;
                 8 * cores * dev.capacity() / GiB
-            },
+            }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
         let mut strands = Vec::with_capacity(count as usize);
