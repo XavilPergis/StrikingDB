@@ -28,22 +28,23 @@ pub type SResult<T> = Result<T, SError>;
 #[derive(Debug)]
 pub enum SError {
     Io(io::Error),
+    LowLevel,
     FileType,
 }
 
 impl Error for SError {
-    fn description(&self) -> &'static str {
-        match *self {
-            SError::Io(err) => err.description(),
-            SError::FileType => "Invalid file type",
+    fn description(&self) -> &str {
+        match self {
+            &SError::Io(ref err) => err.description(),
+            &SError::LowLevel => "Low level I/O operation failure",
+            &SError::FileType => "Invalid file type",
         }
     }
 
     fn cause(&self) -> Option<&Error> {
-        if let SError::Io(err) = *self {
-            err.cause()
-        } else {
-            None
+        match self {
+            &SError::Io(ref err) => Some(err),
+            _ => None,
         }
     }
 }
