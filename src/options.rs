@@ -19,9 +19,16 @@
  *
  */
 
+pub enum Mode {
+    Open,
+    Create,
+    Truncate,
+}
+
 pub struct Options {
     pub strands: Option<usize>,
     pub cache: Option<usize>,
+    pub mode: Mode,
 }
 
 impl Options {
@@ -29,6 +36,7 @@ impl Options {
         Options {
             strands: None,
             cache: None,
+            mode: Mode::Open,
         }
     }
 
@@ -39,6 +47,16 @@ impl Options {
 
     pub fn cache(&mut self, bytes: usize) -> &mut Self {
         self.cache = Some(bytes);
+        self
+    }
+
+    pub fn create(&mut self) -> &mut Self {
+        self.mode = Mode::Create;
+        self
+    }
+
+    pub fn truncate(&mut self) -> &mut Self {
+        self.mode = Mode::Truncate;
         self
     }
 }
