@@ -21,17 +21,24 @@
 
 pub struct Options {
     pub strands: Option<usize>,
+    pub cache: Option<usize>,
 }
 
 impl Options {
     pub fn new() -> Self {
         Options {
             strands: None,
+            cache: None,
         }
     }
 
     pub fn strands(&mut self, strands: usize) -> &mut Self {
         self.strands = Some(strands);
+        self
+    }
+
+    pub fn cache(&mut self, bytes: usize) -> &mut Self {
+        self.cache = Some(bytes);
         self
     }
 }
