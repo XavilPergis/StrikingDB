@@ -28,15 +28,15 @@ pub enum OpenMode {
 pub struct OpenOptions {
     pub strands: Option<usize>,
     pub cache: Option<usize>,
-    pub mode: Mode,
+    pub mode: OpenMode,
 }
 
-impl Options {
+impl OpenOptions {
     pub fn new() -> Self {
-        Options {
+        OpenOptions {
             strands: None,
             cache: None,
-            mode: Mode::Open,
+            mode: OpenMode::Open,
         }
     }
 
@@ -51,12 +51,12 @@ impl Options {
     }
 
     pub fn create(&mut self) -> &mut Self {
-        self.mode = Mode::Create;
+        self.mode = OpenMode::Create;
         self
     }
 
     pub fn truncate(&mut self) -> &mut Self {
-        self.mode = Mode::Truncate;
+        self.mode = OpenMode::Truncate;
         self
     }
 }

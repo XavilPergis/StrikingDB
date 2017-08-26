@@ -20,7 +20,7 @@
  */
 
 use index::Index;
-use options::Options;
+use options::OpenOptions;
 use std::fs::File;
 use std::io::{self, Write};
 use super::device::Device;
@@ -36,7 +36,7 @@ pub struct Store {
 
 impl Store {
     // Create
-    pub fn load(file: File, options: Options) -> SResult<Self> {
+    pub fn load(file: File, options: OpenOptions) -> SResult<Self> {
         // TODO
         let pool = StrandPool::new(Device::open(file)?, &options);
         Ok(Store {
