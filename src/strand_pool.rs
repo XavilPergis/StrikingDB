@@ -21,6 +21,7 @@
 
 use device::Device;
 use num_cpus;
+use options::Options;
 use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::rc::Rc;
@@ -36,7 +37,9 @@ pub struct StrandPool {
 }
 
 impl StrandPool {
-    pub fn new(dev: Device, count: Option<usize>) -> Self {
+    pub fn new(dev: Device, options: &Options) -> Self {
+        let count = options.strands;
+
         #[warn(non_upper_case_globals)]
         const GiB: u64 = 1024 * 1024 * 1024;
 

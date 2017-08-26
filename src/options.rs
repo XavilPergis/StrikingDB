@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * options.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,35 +19,19 @@
  *
  */
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+pub struct Options {
+    pub strands: Option<usize>,
+}
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+impl Options {
+    pub fn new() -> Self {
+        Options {
+            strands: None,
+        }
+    }
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
-
-mod device;
-mod error;
-mod header;
-mod index;
-mod options;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
-
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-pub use options::Options;
-
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+    pub fn strands(&mut self, strands: usize) -> &mut Self {
+        self.strands = Some(strands);
+        self
+    }
+}
