@@ -66,7 +66,7 @@ impl Store {
         if !self.index.key_exists(key) {
             return Err(SError::KeyNotFound);
         }
-        
+
         unimplemented!()
     }
 
@@ -74,11 +74,15 @@ impl Store {
         let mut index_map = self.index.index_map();
         let strand = self.pool.write();
         index_map.insert(Vec::from(key).into_boxed_slice(), ptr);
-        
+
         unimplemented!()
     }
 
     // Delete
+    pub fn delete(&mut self, key: &[u8]) -> SResult<()> {
+        unimplemented!();
+    }
+
     pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
         unimplemented!()
     }
