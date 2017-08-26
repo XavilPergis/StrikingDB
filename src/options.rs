@@ -19,13 +19,13 @@
  *
  */
 
-pub enum Mode {
+pub enum OpenMode {
     Open,
     Create,
     Truncate,
 }
 
-pub struct Options {
+pub struct OpenOptions {
     pub strands: Option<usize>,
     pub cache: Option<usize>,
     pub mode: Mode,

@@ -44,7 +44,7 @@ mod utils;
 pub use error::SError as Error;
 pub use error::SResult as Result;
 pub use store::Store;
-pub use options::{Mode, Options};
+pub use options::{OpenMode, OpenOptions};
 
 const PAGE_SIZE: u64 = 4096;
 const MAX_KEY_LEN: usize = 512;
