@@ -27,6 +27,7 @@ use std::rc::Rc;
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use super::{PAGE_SIZE, FilePointer};
+use utils::align;
 
 #[derive(Debug)]
 pub struct StrandPool {
@@ -44,18 +45,17 @@ impl StrandPool {
             Some(x) => x as u64,
             None => {
                 let cores = num_cpus::get() as u64;
-                8 * cores * dev.capacity / GiB
+                8 * cores * dev.capacity() / GiB
             },
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
         let mut strands = Vec::with_capacity(count as usize);
 
-        let size = dev.capacity / count;
-        let size = (size / PAGE_SIZE) * PAGE_SIZE;
+        let size = align(dev.capacity() / count);
 
         // Allocate strands
         // The first page is reserved for metadata
-        let mut left = dev.capacity;
+        let mut left = dev.capacity();
         for i in 0..count {
             let off = i * size + PAGE_SIZE;
             let len = cmp::min(size, left);
@@ -78,9 +78,9 @@ impl StrandPool {
         // Search for the strand that has this file pointer
         let result = self.strands.binary_search_by(|strand| {
             let guard = strand.read();
-            if ptr < (*guard).off {
+            if ptr < guard.off() {
                 Ordering::Less
-            } else if ptr < (*guard).off + (*guard).len {
+            } else if ptr < guard.off() + guard.len() {
                 Ordering::Equal
             } else {
                 Ordering::Greater

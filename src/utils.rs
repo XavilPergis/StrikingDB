@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * utils.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,33 +19,20 @@
  *
  */
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+use super::PAGE_SIZE;
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+#[inline]
+pub fn align(off: u64) -> u64 {
+    (off / PAGE_SIZE) * PAGE_SIZE
+}
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+#[inline]
+pub fn align_up(off: u64) -> u64 {
+    let mut align_off = align(off);
 
-mod device;
-mod error;
-mod header;
-mod index;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
+    if align_off != off {
+        align_off += 1;
+    }
 
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+    align_off
+}

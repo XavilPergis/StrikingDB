@@ -56,8 +56,8 @@ fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
 #[derive(Debug)]
 pub struct Device {
     fh: File,
-    pub capacity: u64,
-    pub block: bool,
+    capacity: u64,
+    block: bool,
 }
 
 impl Device {
@@ -69,6 +69,16 @@ impl Device {
             capacity: capacity,
             block: block,
         })
+    }
+
+    #[inline]
+    pub fn capacity(&self) -> u64 {
+        self.capacity
+    }
+
+    #[inline]
+    pub fn block(&self) -> bool {
+        self.block
     }
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {

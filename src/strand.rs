@@ -21,25 +21,48 @@
 
 use device::Device;
 use std::rc::Rc;
-use super::PAGE_SIZE;
+use super::{PAGE_SIZE, FilePointer, Result};
+use utils::{align, align_up};
 
 #[derive(Debug)]
 pub struct Strand {
     dev: Rc<Device>,
-    pub off: u64,
-    pub len: u64,
+    off: u64,
+    len: u64,
 }
 
 impl Strand {
     pub fn new(dev: Rc<Device>, off: u64, len: u64) -> Self {
         assert_eq!(off % PAGE_SIZE, 0, "Offset is not a multiple of the page size");
         assert_eq!(len % PAGE_SIZE, 0, "Length is not a multiple of the page size");
-        assert!(off + len >= dev.capacity, "Strand extends off the boundary of the device");
+        assert!(off + len >= dev.capacity(), "Strand extends off the boundary of the device");
 
         Strand {
             dev: dev,
             off: off,
             len: len,
         }
+    }
+
+    #[inline]
+    pub fn off(&self) -> u64 {
+        self.off
+    }
+
+    #[inline]
+    pub fn len(&self) -> u64 {
+        self.len
+    }
+
+    pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
+        // TODO caching
+
+        unimplemented!();
+    }
+
+    pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
+        // TODO caching
+
+        unimplemented!();
     }
 }
