@@ -22,11 +22,21 @@
 use std::collections::BTreeMap;
 use super::FilePointer;
 
+type IndexMap = BTreeMap<Box<[u8]>, FilePointer>;
+
 #[derive(Debug)]
-pub struct Index(BTreeMap<Box<[u8]>, FilePointer>);
+pub struct Index(IndexMap);
 
 impl Index {
     pub fn new() -> Self {
         Index(BTreeMap::new())
+    }
+
+    pub fn index_map(&mut self) -> &mut IndexMap {
+        &mut self.0
+    }
+
+    pub fn key_exists<'a>(&self, key: &'a [u8]) -> bool {
+        self.0.contains_key(key)
     }
 }

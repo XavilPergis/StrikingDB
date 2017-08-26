@@ -20,24 +20,66 @@
  */
 
 use index::Index;
+use std::fs::File;
 use std::io::{self, Write};
+use super::strand_pool::StrandPool;
+use super::strand::Strand;
+use super::device::Device;
+use super::error::{SError, SResult};
 
 #[derive(Debug)]
 pub struct Store {
+    pool: StrandPool,
     index: Index,
 }
 
 impl Store {
-    pub fn new() -> Self {
+    // Create
+    pub fn load(file: File, strands: Option<usize>) -> SResult<Self> {
         // TODO
-        Store { index: Index::new() }
+        let pool = StrandPool::new(Device::open(file)?, strands);
+        Ok(Store {
+            index: Index::new(),
+            pool,
+        })
     }
 
-    pub fn lookup<K, W>(&self, key: K, buffer: W) -> io::Result<()>
+    // Read
+    pub fn lookup<K, W>(&self, key: K, buffer: W) -> SResult<()>
     where
         K: AsRef<[u8]>,
         W: Write,
     {
         Ok(())
+    }
+
+    // Update
+    pub fn insert<K: AsRef<[u8]>, V: AsRef<[u8]>>(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+        if self.index.key_exists(key.as_ref()) {
+            return Err(SError::KeyExists);
+        }
+
+        self.put(key.as_ref(), value.as_ref())
+    }
+
+    pub fn update<K: AsRef<[u8]>, V: AsRef<[u8]>>(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+        if !self.index.key_exists(key) {
+            return Err(SError::KeyNotFound);
+        }
+        
+        unimplemented!()
+    }
+
+    pub fn put<K: AsRef<[u8]>, V: AsRef<[u8]>>(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+        let mut index_map = self.index.index_map();
+        let strand = self.pool.write();
+        index_map.insert(Vec::from(key).into_boxed_slice(), ptr);
+        
+        unimplemented!()
+    }
+
+    // Delete
+    pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
+        unimplemented!()
     }
 }
