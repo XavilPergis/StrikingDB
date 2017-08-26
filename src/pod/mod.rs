@@ -23,9 +23,11 @@ mod header;
 
 pub use self::header::Header;
 
-pub unsafe trait Pod {}
+pub trait Pod {
+    fn validate(&self) -> bool;
+}
 
-use std::{mem, ptr, slice};
+use std::{mem, ptr, result, slice};
 use super::*;
 
 fn as_bytes<T: Pod>(src: &T) -> &[u8] {
@@ -35,17 +37,17 @@ fn as_bytes<T: Pod>(src: &T) -> &[u8] {
     }
 }
 
-fn from_bytes<T: Pod>(src: &[u8]) -> T {
+fn from_bytes<T: Pod>(src: &[u8]) -> result::Result<T, ()> {
     assert_eq!(src.len(), mem::size_of::<T>());
     let src = src.as_ptr();
-
-    unsafe {
+    let dest = unsafe {
         let mut dest = mem::uninitialized::<T>();
         let dest_ptr: *mut T = &mut dest;
-        ptr::copy_nonoverlapping(
-            src as *const u8,
-            dest_ptr as *mut u8,
-            1);
+        ptr::copy_nonoverlapping(src as *const u8, dest_ptr as *mut u8, 1);
         dest
+    };
+    match dest.validate() {
+        true => Ok(dest),
+        false => Err(()),
     }
 }

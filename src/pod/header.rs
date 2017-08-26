@@ -30,7 +30,7 @@ lazy_static! {
     static ref PATCH: u8 = env!("CARGO_PKG_VERSION_PATCH").parse().unwrap();
 }
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 #[repr(C, packed)]
 pub struct Header {
     pub signature: u64,
@@ -49,5 +49,11 @@ impl Header {
             patch: *PATCH,
             serial: SERIAL_VERSION,
         }
+    }
+}
+
+impl Pod for Header {
+    fn validate(&self) -> bool {
+        self == &Header::new()
     }
 }
