@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * pod/mod.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,33 +19,33 @@
  *
  */
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+mod header;
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+pub use self::header::Header;
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+pub unsafe trait Pod {}
 
-mod device;
-mod error;
-mod index;
-mod pod;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
+use std::{mem, ptr, slice};
+use super::*;
 
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
+fn as_bytes<T: Pod>(src: &T) -> &[u8] {
+    let ptr: *const T = src;
+    unsafe {
+        slice::from_raw_parts(ptr as *const u8, mem::size_of::<T>())
+    }
+}
 
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
+fn from_bytes<T: Pod>(src: &[u8]) -> T {
+    assert_eq!(src.len(), mem::size_of::<T>());
+    let src = src.as_ptr();
 
-type FilePointer = u64;
+    unsafe {
+        let mut dest = mem::uninitialized::<T>();
+        let dest_ptr: *mut T = &mut dest;
+        ptr::copy_nonoverlapping(
+            src as *const u8,
+            dest_ptr as *mut u8,
+            1);
+        dest
+    }
+}
