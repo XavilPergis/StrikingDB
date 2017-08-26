@@ -26,7 +26,7 @@ use std::cmp::{self, Ordering};
 use std::rc::Rc;
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use super::{PAGE_SIZE, FilePointer};
+use super::{PAGE_SIZE, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ pub struct StrandPool {
 }
 
 impl StrandPool {
-    pub fn new(dev: Device, count: Option<usize>) -> Self {
+    pub fn new(dev: Device, count: Option<usize>, read: bool) -> Result<Self> {
         #[warn(non_upper_case_globals)]
         const GiB: u64 = 1024 * 1024 * 1024;
 
@@ -62,25 +62,25 @@ impl StrandPool {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            let strand = Strand::new(dev.clone(), off, len);
+            let strand = Strand::new(dev.clone(), i, off, len, read)?;
             let lock = RwLock::new(strand);
             strands.push(lock);
         }
         debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
-        StrandPool {
+        Ok(StrandPool {
             dev: dev,
             strands: strands.into_boxed_slice(),
-        }
+        })
     }
 
     pub fn read(&self, ptr: FilePointer) -> RwLockReadGuard<Strand> {
         // Search for the strand that has this file pointer
         let result = self.strands.binary_search_by(|strand| {
             let guard = strand.read();
-            if ptr < guard.off() {
+            if ptr < guard.start() {
                 Ordering::Less
-            } else if ptr < guard.off() + guard.len() {
+            } else if ptr < guard.start() + guard.capacity() {
                 Ordering::Equal
             } else {
                 Ordering::Greater

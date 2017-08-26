@@ -1,5 +1,5 @@
 /*
- * pod/mod.rs
+ * pod/strand.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,37 +19,30 @@
  *
  */
 
-mod header;
-mod strand;
+use super::Pod;
 
-pub use self::header::Header;
-pub use self::strand::StrandHeader;
+const SIGNATURE: u64 = 0x582f047b5ed83a7f;
 
-pub trait Pod {
-    fn validate(&self) -> bool;
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[repr(C, packed)]
+pub struct StrandHeader {
+    pub signature: u64,
+    pub strand: u64,
+    pub offset: u64,
 }
 
-use std::{mem, ptr, slice};
-use super::*;
-
-pub fn as_bytes<T: Pod>(src: &T) -> &[u8] {
-    let ptr: *const T = src;
-    unsafe {
-        slice::from_raw_parts(ptr as *const u8, mem::size_of::<T>())
+impl StrandHeader {
+    pub fn new(strand: u64, offset: u64) -> Self {
+        StrandHeader {
+            signature: SIGNATURE,
+            strand: strand,
+            offset: offset,
+        }
     }
 }
 
-pub fn from_bytes<T: Pod>(src: &[u8]) -> Result<T> {
-    assert_eq!(src.len(), mem::size_of::<T>());
-    let src = src.as_ptr();
-    let dest = unsafe {
-        let mut dest = mem::uninitialized::<T>();
-        let dest_ptr: *mut T = &mut dest;
-        ptr::copy_nonoverlapping(src as *const u8, dest_ptr as *mut u8, 1);
-        dest
-    };
-    match dest.validate() {
-        true => Ok(dest),
-        false => Err(error::SError::Corruption),
+impl Pod for StrandHeader {
+    fn validate(&self) -> bool {
+        self.signature == SIGNATURE
     }
 }

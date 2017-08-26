@@ -27,17 +27,19 @@ pub type SResult<T> = Result<T, SError>;
 
 #[derive(Debug)]
 pub enum SError {
+    FileType,
+    Corruption,
     Io(io::Error),
     LowLevel,
-    FileType,
 }
 
 impl Error for SError {
     fn description(&self) -> &str {
         match self {
+            &SError::FileType => "Invalid file type",
+            &SError::Corruption => "Volume is corrupt",
             &SError::Io(ref err) => err.description(),
             &SError::LowLevel => "Low level I/O operation failure",
-            &SError::FileType => "Invalid file type",
         }
     }
 

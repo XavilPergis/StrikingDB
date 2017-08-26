@@ -20,38 +20,65 @@
  */
 
 use device::Device;
+use pod::{StrandHeader, as_bytes, from_bytes};
 use std::rc::Rc;
+use std::mem;
 use super::{PAGE_SIZE, FilePointer, Result};
 use utils::{align, align_up};
 
 #[derive(Debug)]
 pub struct Strand {
     dev: Rc<Device>,
+    start: u64,
+    capacity: u64,
     off: u64,
-    len: u64,
 }
 
 impl Strand {
-    pub fn new(dev: Rc<Device>, off: u64, len: u64) -> Self {
-        assert_eq!(off % PAGE_SIZE, 0, "Offset is not a multiple of the page size");
-        assert_eq!(len % PAGE_SIZE, 0, "Length is not a multiple of the page size");
-        assert!(off + len >= dev.capacity(), "Strand extends off the boundary of the device");
+    pub fn new(
+        dev: Rc<Device>,
+        strand: u64,
+        start: u64,
+        capacity: u64,
+        read_strand: bool,
+    ) -> Result<Self> {
+        assert_eq!(start % PAGE_SIZE, 0, "Start is not a multiple of the page size");
+        assert_eq!(capacity % PAGE_SIZE, 0, "Capacity is not a multiple of the page size");
+        assert!(start + capacity >= dev.capacity(), "Strand extends off the boundary of the device");
+        assert!(capacity > PAGE_SIZE, "Strand only one page long");
 
-        Strand {
+        let header = {
+            let mut buf = [0; PAGE_SIZE as usize];
+            if read_strand {
+                dev.read(0, &mut buf[..])?;
+                from_bytes(&buf[..mem::size_of::<StrandHeader>()])?
+            } else {
+                let header = StrandHeader::new(strand, PAGE_SIZE);
+                {
+                    let mut slice = &mut buf[0..mem::size_of::<StrandHeader>()];
+                    slice.copy_from_slice(as_bytes(&header));
+                }
+                dev.write(0, &buf[..])?;
+                header
+            }
+        };
+
+        Ok(Strand {
             dev: dev,
-            off: off,
-            len: len,
-        }
+            start: start,
+            capacity: capacity,
+            off: header.offset,
+        })
     }
 
     #[inline]
-    pub fn off(&self) -> u64 {
-        self.off
+    pub fn start(&self) -> u64 {
+        self.start
     }
 
     #[inline]
-    pub fn len(&self) -> u64 {
-        self.len
+    pub fn capacity(&self) -> u64 {
+        self.capacity
     }
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
