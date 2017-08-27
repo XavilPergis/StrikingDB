@@ -20,9 +20,32 @@
  */
 
 use device::Device;
+use std::io::Write;
 use std::rc::Rc;
 use super::{PAGE_SIZE, FilePointer, Result};
 use utils::{align, align_up};
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Item {
+    // Points to the first byte in the key
+    ptr: u64,
+    key_len: usize,
+    val_len: usize,
+}
+
+impl Item {
+    fn from_ptr(ptr: FilePointer) -> Self {
+        unimplemented!();
+    }
+
+    pub fn key<W: Write>(&self, key: W) -> usize {
+        unimplemented!();
+    }
+
+    pub fn value<W: Write>(&self, value: W) -> usize {
+        unimplemented!();
+    }
+}
 
 #[derive(Debug)]
 pub struct Strand {
@@ -63,6 +86,14 @@ impl Strand {
     #[inline]
     pub fn len(&self) -> u64 {
         self.len
+    }
+
+    pub fn item(&self, ptr: FilePointer) -> Item {
+        unimplemented!();
+    }
+
+    pub fn append(&mut self, key: &[u8], value: &[u8]) -> Result<FilePointer> {
+        unimplemented!();
     }
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {

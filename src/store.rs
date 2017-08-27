@@ -51,21 +51,21 @@ impl Store {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),
         };
-        let strand = self.pool.read(ptr)?;
-        let item = strand.item(ptr)?;
-        let bytes = item.get_value(value)?;
+        let strand = self.pool.read(ptr);
+        let item = strand.item(ptr);
+        let bytes = item.value(value);
         Ok(bytes)
     }
 
     // Update
-    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
 
-        let strand = self.pool.write()?;
+        let mut strand = self.pool.write();
         let ptr = strand.append(key, value)?;
-        self.index.put(key, ptr)?;
+        self.index.put(key, ptr);
 
         Ok(())
     }
@@ -79,10 +79,6 @@ impl Store {
     }
 
     pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
-        let mut index_map = self.index.lock().index_map();
-        let mut strand = self.pool.write();
-        index_map.insert(Vec::from(key).into_boxed_slice(), ptr);
-
         unimplemented!()
     }
 
