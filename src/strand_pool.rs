@@ -21,6 +21,7 @@
 
 use device::Device;
 use num_cpus;
+use options::{OpenMode, OpenOptions};
 use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::rc::Rc;
@@ -36,7 +37,11 @@ pub struct StrandPool {
 }
 
 impl StrandPool {
-    pub fn new(dev: Device, count: Option<usize>, read: bool) -> Result<Self> {
+    pub fn new(dev: Device, options: &OpenOptions) -> Result<Self> {
+        let count = options.strands;
+
+        // TODO handle options
+
         #[warn(non_upper_case_globals)]
         const GiB: u64 = 1024 * 1024 * 1024;
 
@@ -46,7 +51,7 @@ impl StrandPool {
             None => {
                 let cores = num_cpus::get() as u64;
                 8 * cores * dev.capacity() / GiB
-            },
+            }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
         let mut strands = Vec::with_capacity(count as usize);
@@ -62,7 +67,7 @@ impl StrandPool {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            let strand = Strand::new(dev.clone(), i, off, len, read)?;
+            let strand = Strand::new(dev.clone(), i, off, len, options.mode == OpenMode::Open)?;
             let lock = RwLock::new(strand);
             strands.push(lock);
         }

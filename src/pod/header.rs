@@ -22,7 +22,7 @@
 use super::{PAGE_SIZE, Pod};
 
 const SIGNATURE: u64 = 0x864d26e37a418b16;
-const SERIAL_VERSION: u8 = 0;
+const PAD: u8 = 0x12;
 
 lazy_static! {
     static ref MAJOR: u8 = env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap();
@@ -37,23 +37,32 @@ pub struct Header {
     pub major: u8,
     pub minor: u8,
     pub patch: u8,
-    pub serial: u8,
+    _pad: u8,
+    pub strands: u32,
 }
 
 impl Header {
-    pub fn new() -> Self {
+    pub fn new(strands: u32) -> Self {
+        assert_ne!(strands, 0);
+
         Header {
             signature: SIGNATURE,
             major: *MAJOR,
             minor: *MINOR,
             patch: *PATCH,
-            serial: SERIAL_VERSION,
+            _pad: PAD,
+            strands: strands,
         }
     }
 }
 
 impl Pod for Header {
     fn validate(&self) -> bool {
-        self == &Header::new()
+        self.signature == SIGNATURE &&
+            self.major == *MAJOR &&
+            self.minor == *MINOR &&
+            self.patch == *PATCH &&
+            self._pad == PAD &&
+            self.strands > 0
     }
 }

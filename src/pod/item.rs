@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * pod/item.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,35 +19,26 @@
  *
  */
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+use super::{MAX_KEY_LEN, MAX_VAL_LEN, Pod};
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[repr(C, packed)]
+pub struct ItemHeader {
+    pub key_len: u16,
+    pub val_len: u16,
+}
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+impl ItemHeader {
+    pub fn new(key_len: u16, val_len: u16) -> Self {
+        ItemHeader {
+            key_len: key_len,
+            val_len: val_len,
+        }
+    }
+}
 
-mod device;
-mod error;
-mod index;
-mod options;
-mod pod;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
-
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-pub use options::{OpenMode, OpenOptions};
-
-const PAGE_SIZE: u64 = 4096;
-pub const MAX_KEY_LEN: usize = 512;
-pub const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+impl Pod for ItemHeader {
+    fn validate(&self) -> bool {
+        key_len <= MAX_KEY_LEN && val_len <= MAX_VAL_LEN
+    }
+}

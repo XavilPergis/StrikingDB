@@ -20,24 +20,74 @@
  */
 
 use index::Index;
+use options::OpenOptions;
+use std::fs::File;
 use std::io::{self, Write};
+use super::device::Device;
+use super::error::{SError, SResult};
+use super::strand::Strand;
+use super::strand_pool::StrandPool;
 
 #[derive(Debug)]
 pub struct Store {
+    pool: StrandPool,
     index: Index,
 }
 
 impl Store {
-    pub fn new() -> Self {
+    // Create
+    pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
         // TODO
-        Store { index: Index::new() }
+        let pool = StrandPool::new(Device::open(file)?, &options)?;
+        Ok(Store {
+            index: Index::new(),
+            pool,
+        })
     }
 
-    pub fn lookup<K, W>(&self, key: K, buffer: W) -> io::Result<()>
-    where
-        K: AsRef<[u8]>,
-        W: Write,
-    {
+    // Read
+    pub fn lookup<W: Write>(&self, key: &[u8], value: W) -> SResult<usize> {
+        let ptr = match self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+        let strand = self.pool.read(ptr);
+        let item = strand.item(ptr);
+        let bytes = item.value(value);
+        Ok(bytes)
+    }
+
+    // Update
+    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+        if self.index.key_exists(key) {
+            return Err(SError::ItemExists);
+        }
+
+        let mut strand = self.pool.write();
+        let ptr = strand.append(key, value)?;
+        self.index.put(key, ptr);
+
         Ok(())
+    }
+
+    pub fn update(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+        if !self.index.key_exists(key) {
+            return Err(SError::ItemNotFound);
+        }
+
+        unimplemented!()
+    }
+
+    pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+        unimplemented!()
+    }
+
+    // Delete
+    pub fn delete<W: Write>(&mut self, key: &[u8], value: W) -> SResult<()> {
+        unimplemented!();
+    }
+
+    pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
+        unimplemented!()
     }
 }
