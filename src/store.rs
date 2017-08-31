@@ -58,7 +58,7 @@ impl Store {
     }
 
     // Update
-    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
@@ -83,11 +83,11 @@ impl Store {
     }
 
     // Delete
-    pub fn delete<W: Write>(&mut self, key: &[u8], value: W) -> SResult<()> {
+    pub fn delete<W: Write>(&self, key: &[u8], value: W) -> SResult<()> {
         unimplemented!();
     }
 
-    pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
+    pub fn remove(&self, key: &[u8]) -> SResult<()> {
         unimplemented!();
     }
 
