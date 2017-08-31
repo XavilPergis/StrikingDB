@@ -19,6 +19,7 @@
  *
  */
 
+use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
@@ -32,6 +33,7 @@ use super::strand_pool::StrandPool;
 pub struct Store {
     pool: StrandPool,
     index: Index,
+    deleted: Deleted,
 }
 
 impl Store {
@@ -40,8 +42,9 @@ impl Store {
         // TODO
         let pool = StrandPool::new(Device::open(file)?, &options);
         Ok(Store {
-            index: Index::new(),
             pool,
+            index: Index::new(),
+            deleted: Deleted::new(),
         })
     }
 
