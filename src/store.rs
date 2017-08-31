@@ -76,7 +76,7 @@ impl Store {
             return Err(SError::ItemNotFound);
         }
 
-        self.remove(key)?;
+        self.remove_item(key)?;
         let ptr = self.pool.write().append(key, value)?;
         self.index.put(key, ptr);
 
@@ -85,7 +85,7 @@ impl Store {
 
     pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if self.index.key_exists(key) {
-            self.remove(key)?;
+            self.remove_item(key)?;
         }
 
         let ptr = self.pool.write().append(key, value)?;
@@ -100,7 +100,19 @@ impl Store {
     }
 
     pub fn remove(&self, key: &[u8]) -> SResult<()> {
-        unimplemented!();
+        self.remove_item(key)
+    }
+
+    fn remove_item(&self, key: &[u8]) -> SResult<()> {
+        let ptr = match self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+
+        self.deleted.put(ptr);
+        self.index.remove(key);
+
+        Ok(())
     }
 
     // Stats
