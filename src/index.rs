@@ -40,8 +40,8 @@ impl Index {
 
     pub fn get(&self, key: &[u8]) -> Option<FilePointer> {
         match self.0.read() {
-            Ok(ref map) => map.get(key),
-            Err(ref poison) => poison.get_ref().get(key),
+            Ok(map) => map.get(key),
+            Err(poison) => poison.get_ref().get(key),
         }.map(|x| *x)
     }
 
@@ -50,14 +50,21 @@ impl Index {
 
         match self.0.write() {
             Ok(mut map) => map.insert(key, value),
-            Err(ref mut poison) => poison.get_mut().insert(key, value),
+            Err(mut poison) => poison.get_mut().insert(key, value),
         }
     }
 
     pub fn count(&self) -> usize {
         match self.0.read() {
-            Ok(ref map) => map.len(),
-            Err(ref poison) => poison.get_ref().len(),
+            Ok(map) => map.len(),
+            Err(poison) => poison.get_ref().len(),
+        }
+    }
+
+    pub fn remove(&self, key: &[u8]) -> Option<FilePointer> {
+        match self.0.write() {
+            Ok(mut map) => map.remove(key),
+            Err(mut poison) => poison.get_mut().remove(key),
         }
     }
 }
