@@ -71,7 +71,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn update(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn update(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -83,7 +83,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn put(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if self.index.key_exists(key) {
             self.remove(key)?;
         }
