@@ -67,7 +67,6 @@ impl Store {
 
         let ptr = self.pool.write().append(key, value)?;
         self.index.put(key, ptr);
-
         Ok(())
     }
 
@@ -79,7 +78,6 @@ impl Store {
         self.remove_item(key)?;
         let ptr = self.pool.write().append(key, value)?;
         self.index.put(key, ptr);
-
         Ok(())
     }
 
@@ -90,17 +88,29 @@ impl Store {
 
         let ptr = self.pool.write().append(key, value)?;
         self.index.put(key, ptr);
-
         Ok(())
     }
 
     // Delete
-    pub fn delete<W: Write>(&self, key: &[u8], value: W) -> SResult<()> {
-        unimplemented!();
+    pub fn delete<W: Write>(&self, key: &[u8], value: W) -> SResult<usize> {
+        let ptr = match.self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+        let strand = self.pool.read(ptr);
+        let item = strand.item(ptr);
+        let bytes = item.value(value);
+
+        self.deleted.put(ptr);
+        self.index.remove(key);
+        Ok(bytes)
     }
 
     pub fn remove(&self, key: &[u8]) -> SResult<()> {
-        self.remove_item(key)
+        match self.remove_item(key) {
+            Ok(()) | Err(SError::ItemNotFound) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     fn remove_item(&self, key: &[u8]) -> SResult<()> {
@@ -111,7 +121,6 @@ impl Store {
 
         self.deleted.put(ptr);
         self.index.remove(key);
-
         Ok(())
     }
 
