@@ -40,8 +40,8 @@ impl Index {
 
     pub fn get(&self, key: &[u8]) -> Option<FilePointer> {
         match self.0.read() {
-            Ok(map) => map.get(key),
-            Err(poison) => poison.get_ref().get(key),
+            Ok(ref map) => map.get(key),
+            Err(ref poison) => poison.get_ref().get(key),
         }.map(|x| *x)
     }
 
