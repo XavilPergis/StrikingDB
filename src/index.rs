@@ -53,4 +53,11 @@ impl Index {
             Err(ref mut poison) => poison.get_mut().insert(key, value),
         }
     }
+
+    pub fn count(&self) -> usize {
+        match self.0.read() {
+            Ok(ref map) => map.len(),
+            Err(ref poison) => poison.get_ref().len(),
+        }
+    }
 }

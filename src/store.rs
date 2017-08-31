@@ -75,7 +75,7 @@ impl Store {
             return Err(SError::ItemNotFound);
         }
 
-        unimplemented!()
+        unimplemented!();
     }
 
     pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
@@ -88,6 +88,15 @@ impl Store {
     }
 
     pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
-        unimplemented!()
+        unimplemented!();
+    }
+
+    // Stats
+    pub fn items(&self) -> usize {
+        self.index.count()
+    }
+
+    pub fn deleted(&self) -> usize {
+        unimplemented!();
     }
 }
