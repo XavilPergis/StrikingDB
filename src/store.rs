@@ -121,6 +121,6 @@ impl Store {
     }
 
     pub fn deleted(&self) -> usize {
-        unimplemented!();
+        self.deleted.count()
     }
 }

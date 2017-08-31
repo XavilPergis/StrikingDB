@@ -38,4 +38,11 @@ impl Deleted {
         };
         assert!(!exists, "Deleted item already tracked");
     }
+
+    pub fn count(&self) -> usize {
+        match self.0.read() {
+            Ok(ref set) => set.len(),
+            Err(ref poison) => poison.get_ref().len(),
+        }
+    }
 }
