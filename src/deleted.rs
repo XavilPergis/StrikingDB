@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * deleted.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,36 +19,23 @@
  *
  */
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+use std::collections::BTreeSet;
+use std::sync::RwLock;
+use super::FilePointer;
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+#[derive(Debug)]
+pub struct Deleted(RwLock<BTreeSet<FilePointer>>);
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+impl Deleted {
+    pub fn new() -> Self {
+        Deleted(RwLock::new(BTreeSet::new()))
+    }
 
-mod deleted;
-mod device;
-mod error;
-mod header;
-mod index;
-mod options;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
-
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-pub use options::{OpenMode, OpenOptions};
-
-const PAGE_SIZE: u64 = 4096;
-const MAX_KEY_LEN: usize = 512;
-const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+    pub fn put(&self, value: FilePointer) {
+        let exists = match self.0.write() {
+            Ok(ref mut set) => set.insert(value),
+            Err(ref mut poison) => poison.get_mut().insert(value),
+        };
+        assert!(!exists, "Deleted item already tracked");
+    }
+}

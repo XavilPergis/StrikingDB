@@ -19,6 +19,7 @@
  *
  */
 
+use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
@@ -31,6 +32,7 @@ use super::strand_pool::StrandPool;
 pub struct Store {
     pool: StrandPool,
     index: Index,
+    deleted: Deleted,
 }
 
 impl Store {
@@ -39,8 +41,9 @@ impl Store {
         // TODO
         let pool = StrandPool::new(Device::open(file)?, &options);
         Ok(Store {
-            index: Index::new(),
             pool,
+            index: Index::new(),
+            deleted: Deleted::new(),
         })
     }
 
@@ -57,7 +60,7 @@ impl Store {
     }
 
     // Update
-    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
@@ -92,11 +95,20 @@ impl Store {
     }
 
     // Delete
-    pub fn delete<W: Write>(&mut self, key: &[u8], value: W) -> SResult<()> {
+    pub fn delete<W: Write>(&self, key: &[u8], value: W) -> SResult<()> {
         unimplemented!();
     }
 
-    pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
-        unimplemented!()
+    pub fn remove(&self, key: &[u8]) -> SResult<()> {
+        unimplemented!();
+    }
+
+    // Stats
+    pub fn items(&self) -> usize {
+        self.index.count()
+    }
+
+    pub fn deleted(&self) -> usize {
+        unimplemented!();
     }
 }

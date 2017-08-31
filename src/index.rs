@@ -45,12 +45,19 @@ impl Index {
         }.map(|x| *x)
     }
 
-    pub fn put(&mut self, key: &[u8], value: FilePointer) -> Option<FilePointer> {
+    pub fn put(&self, key: &[u8], value: FilePointer) -> Option<FilePointer> {
         let key = Vec::from(key).into_boxed_slice();
 
         match self.0.write() {
             Ok(mut map) => map.insert(key, value),
             Err(ref mut poison) => poison.get_mut().insert(key, value),
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        match self.0.read() {
+            Ok(ref map) => map.len(),
+            Err(ref poison) => poison.get_ref().len(),
         }
     }
 }
