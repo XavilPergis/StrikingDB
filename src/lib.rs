@@ -19,6 +19,11 @@
  *
  */
 
+// FIXME: remove in final version, this is just here so
+// `chargo check`ing doesn't flood the terminal with warnings
+// about unused code
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate cfg_if;
 extern crate num_cpus;
