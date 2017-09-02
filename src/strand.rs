@@ -38,11 +38,11 @@ impl Item {
         unimplemented!();
     }
 
-    pub fn key<W: Write>(&self, key: W) -> usize {
+    pub fn key(&self, key: &mut [u8]) -> usize {
         unimplemented!();
     }
 
-    pub fn value<W: Write>(&self, value: W) -> usize {
+    pub fn value(&self, value: &mut [u8]) -> usize {
         unimplemented!();
     }
 }

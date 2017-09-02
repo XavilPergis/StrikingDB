@@ -23,7 +23,6 @@ use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
-use std::io::Write;
 use super::device::Device;
 use super::error::{SError, SResult};
 use super::strand_pool::StrandPool;
@@ -48,14 +47,15 @@ impl Store {
     }
 
     // Read
-    pub fn lookup<W: Write>(&self, key: &[u8], value: W) -> SResult<usize> {
+    pub fn lookup(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),
         };
-        let strand = self.pool.read(ptr);
-        let item = strand.item(ptr);
+
+        let item = self.pool.read(ptr).item(ptr);
         let bytes = item.value(value);
+
         Ok(bytes)
     }
 
@@ -95,8 +95,22 @@ impl Store {
     }
 
     // Delete
-    pub fn delete<W: Write>(&self, key: &[u8], value: W) -> SResult<()> {
-        unimplemented!();
+    pub fn delete(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
+        if !self.index.key_exists(key) {
+            return Err(SError::ItemNotFound);
+        }
+
+        let ptr = match self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+
+        let item = self.pool.read(ptr).item(ptr);
+        let bytes_witten = item.value(value);
+
+        self.remove_item(key)?;
+
+        Ok(bytes_witten)
     }
 
     pub fn remove(&self, key: &[u8]) -> SResult<()> {
