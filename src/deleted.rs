@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * deleted.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,41 +19,30 @@
  *
  */
 
-// FIXME: remove in final version, this is just here so
-// `chargo check`ing doesn't flood the terminal with warnings
-// about unused code
-#![allow(dead_code)]
+use std::collections::BTreeSet;
+use std::sync::RwLock;
+use super::FilePointer;
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+#[derive(Debug)]
+pub struct Deleted(RwLock<BTreeSet<FilePointer>>);
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+impl Deleted {
+    pub fn new() -> Self {
+        Deleted(RwLock::new(BTreeSet::new()))
+    }
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+    pub fn put(&self, value: FilePointer) {
+        let exists = match self.0.write() {
+            Ok(ref mut set) => set.insert(value),
+            Err(ref mut poison) => poison.get_mut().insert(value),
+        };
+        assert!(!exists, "Deleted item already tracked");
+    }
 
-mod deleted;
-mod device;
-mod error;
-mod index;
-mod options;
-mod pod;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
-
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-pub use options::{OpenMode, OpenOptions};
-
-const PAGE_SIZE: u64 = 4096;
-pub const MAX_KEY_LEN: usize = 512;
-pub const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+    pub fn count(&self) -> usize {
+        match self.0.read() {
+            Ok(ref set) => set.len(),
+            Err(ref poison) => poison.get_ref().len(),
+        }
+    }
+}

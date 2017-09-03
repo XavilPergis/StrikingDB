@@ -19,19 +19,19 @@
  *
  */
 
+use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
-use std::io::{self, Write};
 use super::device::Device;
 use super::error::{SError, SResult};
-use super::strand::Strand;
 use super::strand_pool::StrandPool;
 
 #[derive(Debug)]
 pub struct Store {
     pool: StrandPool,
     index: Index,
+    deleted: Deleted,
 }
 
 impl Store {
@@ -40,33 +40,33 @@ impl Store {
         // TODO
         let pool = StrandPool::new(Device::open(file)?, &options)?;
         Ok(Store {
-            index: Index::new(),
             pool,
+            index: Index::new(),
+            deleted: Deleted::new(),
         })
     }
 
     // Read
-    pub fn lookup<W: Write>(&self, key: &[u8], value: W) -> SResult<usize> {
+    pub fn lookup(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),
         };
-        let strand = self.pool.read(ptr);
-        let item = strand.item(ptr);
+
+        let item = self.pool.read(ptr).item(ptr);
         let bytes = item.value(value);
+
         Ok(bytes)
     }
 
     // Update
-    pub fn insert(&mut self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
 
-        let mut strand = self.pool.write();
-        let ptr = strand.append(key, value)?;
+        let ptr = self.pool.write().append(key, value)?;
         self.index.put(key, ptr);
-
         Ok(())
     }
 
@@ -75,19 +75,65 @@ impl Store {
             return Err(SError::ItemNotFound);
         }
 
-        unimplemented!()
+        self.remove_item(key)?;
+        let ptr = self.pool.write().append(key, value)?;
+        self.index.put(key, ptr);
+        Ok(())
     }
 
     pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
-        unimplemented!()
+        if self.index.key_exists(key) {
+            self.remove_item(key)?;
+        }
+
+        let ptr = self.pool.write().append(key, value)?;
+        self.index.put(key, ptr);
+        Ok(())
     }
 
     // Delete
-    pub fn delete<W: Write>(&mut self, key: &[u8], value: W) -> SResult<()> {
-        unimplemented!();
+    pub fn delete(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
+        if !self.index.key_exists(key) {
+            return Err(SError::ItemNotFound);
+        }
+
+        let ptr = match self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+
+        let item = self.pool.read(ptr).item(ptr);
+        let bytes_witten = item.value(value);
+
+        self.remove_item(key)?;
+
+        Ok(bytes_witten)
     }
 
-    pub fn remove(&mut self, key: &[u8]) -> SResult<()> {
-        unimplemented!()
+    pub fn remove(&self, key: &[u8]) -> SResult<()> {
+        match self.remove_item(key) {
+            Ok(()) | Err(SError::ItemNotFound) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn remove_item(&self, key: &[u8]) -> SResult<()> {
+        let ptr = match self.index.get(key) {
+            Some(ptr) => ptr,
+            None => return Err(SError::ItemNotFound),
+        };
+
+        self.deleted.put(ptr);
+        self.index.remove(key);
+        Ok(())
+    }
+
+    // Stats
+    pub fn items(&self) -> usize {
+        self.index.count()
+    }
+
+    pub fn deleted(&self) -> usize {
+        self.deleted.count()
     }
 }
