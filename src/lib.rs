@@ -46,6 +46,7 @@ mod store;
 mod strand;
 mod strand_pool;
 mod utils;
+mod item;
 
 pub use error::SError as Error;
 pub use error::SResult as Result;
