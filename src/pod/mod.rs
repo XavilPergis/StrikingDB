@@ -26,31 +26,31 @@ mod item;
 pub use self::header::Header;
 pub use self::strand::StrandHeader;
 
-pub unsafe trait Pod {
-    fn validate(&self) -> bool;
-}
-
 use std::{mem, ptr, slice};
 use super::*;
 
-pub fn as_bytes<T: Pod>(src: &T) -> &[u8] {
-    let ptr: *const T = src;
-    unsafe {
-        slice::from_raw_parts(ptr as *const u8, mem::size_of::<T>())
-    }
-}
+pub unsafe trait Pod: Sized {
+    fn validate(&self) -> bool;
 
-pub fn from_bytes<T: Pod>(src: &[u8]) -> Result<T> {
-    assert_eq!(src.len(), mem::size_of::<T>());
-    let src = src.as_ptr();
-    let dest = unsafe {
-        let mut dest = mem::uninitialized::<T>();
-        let dest_ptr: *mut T = &mut dest;
-        ptr::copy_nonoverlapping(src as *const u8, dest_ptr as *mut u8, 1);
-        dest
-    };
-    match dest.validate() {
-        true => Ok(dest),
-        false => Err(error::SError::Corruption),
+    fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        let ptr: *const Self = self;
+        unsafe {
+            slice::from_raw_parts(ptr as *const u8, mem::size_of::<Self>())
+        }
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        assert_eq!(bytes.len(), mem::size_of::<Self>());
+        let src_ptr = bytes.as_ptr();
+        let dest = unsafe {
+            let mut dest = mem::uninitialized::<Self>();
+            let dest_ptr: *mut Self = &mut dest;
+            ptr::copy_nonoverlapping(src_ptr as *const u8, dest_ptr as *mut u8, 1);
+            dest
+        };
+        match dest.validate() {
+            true => Ok(dest),
+            false => Err(error::SError::Corruption),
+        }
     }
 }
