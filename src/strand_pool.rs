@@ -42,15 +42,14 @@ impl StrandPool {
 
         // TODO handle options
 
-        #[warn(non_upper_case_globals)]
-        const GiB: u64 = 1024 * 1024 * 1024;
+        const GB: u64 = 1024 * 1024 * 1024;
 
         let dev = Rc::new(dev);
         let count = match count {
             Some(x) => x as u64,
             None => {
                 let cores = num_cpus::get() as u64;
-                8 * cores * dev.capacity() / GiB
+                8 * cores * dev.capacity() / GB
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
