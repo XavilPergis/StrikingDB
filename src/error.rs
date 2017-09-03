@@ -29,9 +29,10 @@ pub type SResult<T> = Result<T, SError>;
 pub enum SError {
     ItemExists,
     ItemNotFound,
+    FileType,
+    Corruption,
     Io(io::Error),
     LowLevel,
-    FileType,
 }
 
 impl Error for SError {
@@ -39,9 +40,10 @@ impl Error for SError {
         match self {
             &SError::ItemExists => "Item already exists",
             &SError::ItemNotFound => "Item not found",
+            &SError::FileType => "Invalid file type",
+            &SError::Corruption => "Volume is corrupt",
             &SError::Io(ref err) => err.description(),
             &SError::LowLevel => "Low level I/O operation failure",
-            &SError::FileType => "Invalid file type",
         }
     }
 

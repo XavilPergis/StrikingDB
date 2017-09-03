@@ -38,7 +38,7 @@ impl Store {
     // Create
     pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
         // TODO
-        let pool = StrandPool::new(Device::open(file)?, &options);
+        let pool = StrandPool::new(Device::open(file)?, &options)?;
         Ok(Store {
             pool,
             index: Index::new(),

@@ -28,7 +28,7 @@ pub enum OpenMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenOptions {
-    pub strands: Option<usize>,
+    pub strands: Option<u32>,
     pub cache: Option<usize>,
     pub mode: OpenMode,
 }
@@ -42,7 +42,7 @@ impl OpenOptions {
         }
     }
 
-    pub fn strands(&mut self, strands: usize) -> &mut Self {
+    pub fn strands(&mut self, strands: u32) -> &mut Self {
         self.strands = Some(strands);
         self
     }

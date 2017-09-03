@@ -1,5 +1,5 @@
 /*
- * pod/header.rs
+ * pod/strand.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,51 +19,30 @@
  *
  */
 
-use std::{mem, slice};
-use super::{PAGE_SIZE, Pod};
+use super::Pod;
 
-const SIGNATURE: u64 = 0x864d26e37a418b16;
-const PAD: u8 = 0x12;
-
-lazy_static! {
-    static ref MAJOR: u8 = env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap();
-    static ref MINOR: u8 = env!("CARGO_PKG_VERSION_MINOR").parse().unwrap();
-    static ref PATCH: u8 = env!("CARGO_PKG_VERSION_PATCH").parse().unwrap();
-}
+const SIGNATURE: u64 = 0x582f047b5ed83a7f;
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 #[repr(C, packed)]
-pub struct Header {
+pub struct StrandHeader {
     pub signature: u64,
-    pub major: u8,
-    pub minor: u8,
-    pub patch: u8,
-    _pad: u8,
-    pub strands: u32,
+    pub strand: u64,
+    pub offset: u64,
 }
 
-impl Header {
-    pub fn new(strands: u32) -> Self {
-        assert_ne!(strands, 0);
-
-        Header {
+impl StrandHeader {
+    pub fn new(strand: u64, offset: u64) -> Self {
+        StrandHeader {
             signature: SIGNATURE,
-            major: *MAJOR,
-            minor: *MINOR,
-            patch: *PATCH,
-            _pad: PAD,
-            strands: strands,
+            strand: strand,
+            offset: offset,
         }
     }
 }
 
-unsafe impl Pod for Header {
+unsafe impl Pod for StrandHeader {
     fn validate(&self) -> bool {
-        self.signature == SIGNATURE &&
-            self.major == *MAJOR &&
-            self.minor == *MINOR &&
-            self.patch == *PATCH &&
-            self._pad == PAD &&
-            self.strands > 0
+        self.signature == SIGNATURE
     }
 }
