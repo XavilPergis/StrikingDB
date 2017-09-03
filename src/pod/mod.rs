@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * pod/mod.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,41 +19,33 @@
  *
  */
 
-// FIXME: remove in final version, this is just here so
-// `chargo check`ing doesn't flood the terminal with warnings
-// about unused code
-#![allow(dead_code)]
+mod header;
 
-#[macro_use]
-extern crate cfg_if;
-extern crate num_cpus;
+pub use self::header::Header;
 
-#[macro_use]
-extern crate lazy_static;
-extern crate parking_lot;
+pub unsafe trait Pod {}
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+use std::{mem, ptr, slice};
+use super::*;
 
-mod deleted;
-mod device;
-mod error;
-mod index;
-mod options;
-mod pod;
-mod store;
-mod strand;
-mod strand_pool;
-mod utils;
+fn as_bytes<T: Pod>(src: &T) -> &[u8] {
+    let ptr: *const T = src;
+    unsafe {
+        slice::from_raw_parts(ptr as *const u8, mem::size_of::<T>())
+    }
+}
 
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-pub use options::{OpenMode, OpenOptions};
+fn from_bytes<T: Pod>(src: &[u8]) -> T {
+    assert_eq!(src.len(), mem::size_of::<T>());
+    let src = src.as_ptr();
 
-const PAGE_SIZE: u64 = 4096;
-pub const MAX_KEY_LEN: usize = 512;
-pub const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+    unsafe {
+        let mut dest = mem::uninitialized::<T>();
+        let dest_ptr: *mut T = &mut dest;
+        ptr::copy_nonoverlapping(
+            src as *const u8,
+            dest_ptr as *mut u8,
+            1);
+        dest
+    }
+}

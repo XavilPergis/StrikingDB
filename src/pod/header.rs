@@ -1,5 +1,5 @@
 /*
- * header.rs
+ * pod/header.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -20,7 +20,7 @@
  */
 
 use std::{mem, slice};
-use super::PAGE_SIZE;
+use super::{PAGE_SIZE, Pod};
 
 const SIGNATURE: u64 = 0x864d26e37a418b16;
 const SERIAL_VERSION: u8 = 0;
