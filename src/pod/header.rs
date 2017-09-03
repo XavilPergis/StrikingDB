@@ -19,6 +19,7 @@
  *
  */
 
+use std::{mem, slice};
 use super::{PAGE_SIZE, Pod};
 
 const SIGNATURE: u64 = 0x864d26e37a418b16;
@@ -49,5 +50,10 @@ impl Header {
             patch: *PATCH,
             serial: SERIAL_VERSION,
         }
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        let ptr: *const Self = self;
+        unsafe { slice::from_raw_parts(ptr as *const u8, mem::size_of::<Self>()) }
     }
 }
