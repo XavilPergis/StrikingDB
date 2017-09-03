@@ -19,6 +19,7 @@
  *
  */
 
+use std::{mem, slice};
 use super::{PAGE_SIZE, Pod};
 
 const SIGNATURE: u64 = 0x864d26e37a418b16;
