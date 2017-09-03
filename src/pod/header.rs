@@ -57,7 +57,7 @@ impl Header {
     }
 }
 
-impl Pod for Header {
+unsafe impl Pod for Header {
     fn validate(&self) -> bool {
         self.signature == SIGNATURE &&
             self.major == *MAJOR &&

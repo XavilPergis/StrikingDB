@@ -41,7 +41,7 @@ impl StrandHeader {
     }
 }
 
-impl Pod for StrandHeader {
+unsafe impl Pod for StrandHeader {
     fn validate(&self) -> bool {
         self.signature == SIGNATURE
     }

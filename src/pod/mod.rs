@@ -25,7 +25,7 @@ mod strand;
 pub use self::header::Header;
 pub use self::strand::StrandHeader;
 
-pub trait Pod {
+pub unsafe trait Pod {
     fn validate(&self) -> bool;
 }
 
