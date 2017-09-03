@@ -20,7 +20,8 @@
  */
 
 use device::Device;
-use pod::{StrandHeader, as_bytes, from_bytes};
+use pod::{Pod, StrandHeader};
+use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 use super::{PAGE_SIZE, FilePointer, Result};
@@ -51,12 +52,12 @@ impl Strand {
             let mut buf = [0; PAGE_SIZE as usize];
             if read_strand {
                 dev.read(0, &mut buf[..])?;
-                from_bytes(&buf[..mem::size_of::<StrandHeader>()])?
+                Pod::from_bytes(&buf[..mem::size_of::<StrandHeader>()])?
             } else {
                 let header = StrandHeader::new(strand, PAGE_SIZE);
                 {
                     let mut slice = &mut buf[0..mem::size_of::<StrandHeader>()];
-                    slice.copy_from_slice(as_bytes(&header));
+                    slice.copy_from_slice(header.as_bytes());
                 }
                 dev.write(0, &buf[..])?;
                 header
