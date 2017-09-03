@@ -37,8 +37,8 @@ impl ItemHeader {
     }
 }
 
-impl Pod for ItemHeader {
+unsafe impl Pod for ItemHeader {
     fn validate(&self) -> bool {
-        key_len <= MAX_KEY_LEN && val_len <= MAX_VAL_LEN
+        self.key_len <= (MAX_KEY_LEN as u16) && self.val_len <= (MAX_VAL_LEN as u16)
     }
 }

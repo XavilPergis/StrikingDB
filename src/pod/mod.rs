@@ -21,6 +21,7 @@
 
 mod header;
 mod strand;
+mod item;
 
 pub use self::header::Header;
 pub use self::strand::StrandHeader;
