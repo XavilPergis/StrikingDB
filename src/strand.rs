@@ -19,6 +19,7 @@
  *
  */
 
+use cache::Cache;
 use device::Device;
 use pod::{Pod, StrandHeader};
 use std::io::Write;
@@ -30,6 +31,7 @@ use item::Item;
 #[derive(Debug)]
 pub struct Strand {
     dev: Rc<Device>,
+    cache: Cache,
     start: u64,
     capacity: u64,
     off: u64,
