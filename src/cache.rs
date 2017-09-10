@@ -20,14 +20,20 @@
  */
 
 use lru_time_cache::LruCache;
+use std::fmt;
 use super::{FilePointer, PageId, PAGE_SIZE};
 
-#[derive(Debug)]
 pub struct Cache(LruCache<PageId, [u8; PAGE_SIZE as usize]>);
 
 impl Cache {
     pub fn new() -> Self {
         const CACHE_CAPACITY: usize = 512;
         Cache(LruCache::with_capacity(CACHE_CAPACITY))
+    }
+}
+
+impl fmt::Debug for Cache {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Cache({} items)", self.0.len())
     }
 }

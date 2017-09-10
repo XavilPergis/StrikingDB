@@ -68,6 +68,7 @@ impl Strand {
 
         Ok(Strand {
             dev: dev,
+            cache: Cache::new(),
             start: start,
             capacity: capacity,
             off: header.offset,
