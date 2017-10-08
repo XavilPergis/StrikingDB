@@ -22,7 +22,6 @@
 use cache::Cache;
 use device::Device;
 use pod::{Pod, StrandHeader};
-use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 use super::{PAGE_SIZE, FilePointer, Result};

@@ -42,13 +42,14 @@ mod deleted;
 mod device;
 mod error;
 mod index;
+mod item;
 mod options;
+mod page;
 mod pod;
 mod store;
 mod strand;
 mod strand_pool;
 mod utils;
-mod item;
 
 pub use error::SError as Error;
 pub use error::SResult as Result;
@@ -60,4 +61,3 @@ pub const MAX_KEY_LEN: usize = 512;
 pub const MAX_VAL_LEN: usize = 65535;
 
 type FilePointer = u64;
-type PageId = u64;

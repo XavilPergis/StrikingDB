@@ -19,8 +19,7 @@
  *
  */
 
-use std::{mem, slice};
-use super::{PAGE_SIZE, Pod};
+use super::Pod;
 
 const SIGNATURE: u64 = 0x864d26e37a418b16;
 const PAD: u8 = 0x12;
