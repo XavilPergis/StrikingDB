@@ -30,14 +30,21 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn new(page: PageId) -> Self {
-        unimplemented!();
+    pub fn new() -> Self {
+        Page {
+            bytes: [0; PAGE_SIZE as usize],
+            dirty: false,
+        }
+    }
+
+    pub fn dirty(&self) -> bool {
+        self.dirty
     }
 }
 
 impl Drop for Page {
     fn drop(&mut self) {
-        // TODO
+        assert!(!self.dirty, "Page dropped while dirty");
     }
 }
 
