@@ -20,7 +20,8 @@
  */
 
 use std::ops::{Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo};
-use super::PAGE_SIZE;
+use strand::Strand;
+use super::{PAGE_SIZE, Result};
 
 pub type PageId = u64;
 
@@ -39,6 +40,14 @@ impl Page {
 
     pub fn dirty(&self) -> bool {
         self.dirty
+    }
+
+    pub fn flush(&self, strand: &mut Strand, id: PageId) -> Result<()> {
+        if self.dirty() {
+            strand.write(id * PAGE_SIZE, &self[..])?;
+        }
+
+        Ok(())
     }
 }
 

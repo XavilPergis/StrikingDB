@@ -23,7 +23,7 @@ use page::{Page, PageId};
 use std::collections::{BTreeMap, VecDeque};
 use std::borrow::Borrow;
 use strand::Strand;
-use super::{PAGE_SIZE, Result};
+use super::Result;
 
 pub type PageCleanupFn = (FnMut(PageId, &mut Page) -> Result<()>);
 
@@ -34,15 +34,12 @@ impl PageCache {
     pub fn new(strand: &Strand) -> Self {
         const CACHE_CAPACITY: usize = 512;
 
-        let purge = |id, page| {
-            if page.dirty() {
-                strand.write(id * PAGE_SIZE, &page[..])?;
-            }
-
-            Ok(())
-        };
-
-        PageCache(LruCache::with_capacity(Box::new(purge), CACHE_CAPACITY))
+        PageCache(
+            LruCache::with_capacity(
+                Box::new(|id, page| page.flush(strand, id)),
+                CACHE_CAPACITY,
+            )
+        )
     }
 }
 
@@ -121,7 +118,7 @@ where
 
     pub fn get<Q: ?Sized>(&mut self, key: &Q) -> Option<&V>
     where
-        Key: Borrow<Q>,
+        K: Borrow<Q>,
         Q: Ord,
     {
         self.prune();
