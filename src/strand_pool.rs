@@ -24,7 +24,6 @@ use num_cpus;
 use options::{OpenMode, OpenOptions};
 use strand::Strand;
 use std::cmp::{self, Ordering};
-use std::rc::Rc;
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use super::{PAGE_SIZE, FilePointer, Result};
@@ -32,7 +31,7 @@ use utils::align;
 
 #[derive(Debug)]
 pub struct StrandPool {
-    dev: Rc<Device>,
+    dev: Device,
     strands: Box<[RwLock<Strand>]>,
 }
 
@@ -44,7 +43,6 @@ impl StrandPool {
 
         const GB: u64 = 1024 * 1024 * 1024;
 
-        let dev = Rc::new(dev);
         let count = match count {
             Some(x) => x as u64,
             None => {
@@ -66,7 +64,7 @@ impl StrandPool {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            let strand = Strand::new(dev.clone(), i, off, len, options.mode == OpenMode::Open)?;
+            let strand = Strand::new(&dev, i, off, len, options.mode == OpenMode::Open)?;
             let lock = RwLock::new(strand);
             strands.push(lock);
         }

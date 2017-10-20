@@ -81,6 +81,7 @@ impl Index<RangeTo<usize>> for Page {
         &self.bytes[idx]
     }
 }
+
 // Mutable slices
 impl IndexMut<usize> for Page {
     fn index_mut(&mut self, idx: usize) -> &mut u8 {

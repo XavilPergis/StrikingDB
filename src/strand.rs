@@ -19,18 +19,29 @@
  *
  */
 
-use cache::Cache;
+use cache::PageCache;
 use device::Device;
 use pod::{Pod, StrandHeader};
 use std::mem;
-use std::rc::Rc;
 use super::{PAGE_SIZE, FilePointer, Result};
 use item::Item;
 
+// We use this pointer wrapper class to get
+// around lifetime restrictions on having references
+// to items in the same struct as the owner.
+#[derive(Debug)]
+struct DeviceRef(*const Device);
+
+impl DeviceRef {
+    fn get(&self) -> &Device {
+        unsafe { &*self.0 }
+    }
+}
+
 #[derive(Debug)]
 pub struct Strand {
-    dev: Rc<Device>,
-    cache: Cache,
+    dev: DeviceRef,
+    cache: PageCache,
     start: u64,
     capacity: u64,
     off: u64,
@@ -38,7 +49,7 @@ pub struct Strand {
 
 impl Strand {
     pub fn new(
-        dev: Rc<Device>,
+        dev: &Device,
         strand: u64,
         start: u64,
         capacity: u64,
@@ -66,8 +77,8 @@ impl Strand {
         };
 
         Ok(Strand {
-            dev: dev,
-            cache: Cache::new(),
+            dev: DeviceRef(dev),
+            cache: PageCache::new(),
             start: start,
             capacity: capacity,
             off: header.offset,
