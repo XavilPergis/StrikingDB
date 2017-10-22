@@ -32,6 +32,9 @@ extern crate num_cpus;
 extern crate lazy_static;
 extern crate parking_lot;
 
+#[macro_use]
+extern crate stable_deref_trait;
+
 #[cfg(unix)]
 #[macro_use]
 extern crate nix;

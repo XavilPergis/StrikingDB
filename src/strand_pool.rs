@@ -31,7 +31,7 @@ use utils::align;
 
 #[derive(Debug)]
 pub struct StrandPool {
-    dev: Device,
+    dev: Box<Device>,
     strands: Box<[RwLock<Strand>]>,
 }
 

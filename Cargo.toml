@@ -8,6 +8,7 @@ cfg-if = "0.1"
 lazy_static = "0.2"
 num_cpus = "1.6"
 parking_lot = "0.4"
+stable_deref_trait = "1.0"
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.9"

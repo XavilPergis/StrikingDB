@@ -100,7 +100,7 @@ where
     }
 
     pub fn clear(&mut self) {
-        for (key, value) in self.mut_iter() {
+        for (key, value) in self.items.iter_mut() {
             (*self.purge_callback)(key.clone(), value);
         }
 
@@ -126,7 +126,7 @@ where
 
         self.items.get_mut(key).map(|result| {
             Self::update_key(list, key);
-            &result
+            result as &V
         })
     }
 
@@ -140,7 +140,7 @@ where
 
         self.items.get_mut(key).map(|result| {
             Self::update_key(list, key);
-            &mut result
+            result
         })
     }
 
@@ -160,6 +160,7 @@ where
         self.items.len() == 0
     }
 
+    #[inline(never)]
     fn prune(&mut self) {
         while self.items.len() >= self.capacity {
             let _ = self.list.pop_front().map(|key| {
@@ -182,7 +183,8 @@ where
 
 impl<K, V, F> fmt::Debug for LruCache<K, V, F>
     where
-        K: Ord + Clone,
+        K: Ord + Clone + fmt::Debug,
+        V: fmt::Debug,
         F: FnMut(K, &mut V) -> Result<()>,
         F: ?Sized,
 {
