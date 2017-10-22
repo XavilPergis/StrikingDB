@@ -22,10 +22,11 @@
 use page::{Page, PageId};
 use std::collections::{BTreeMap, VecDeque};
 use std::borrow::Borrow;
+use std::fmt;
 use strand::Strand;
 use super::Result;
 
-pub type PageCleanupFn = (FnMut(PageId, &mut Page) -> Result<()>);
+pub type PageCleanupFn = FnMut(PageId, &mut Page) -> Result<()>;
 
 #[derive(Debug)]
 pub struct PageCache(LruCache<PageId, Page, PageCleanupFn>);
@@ -36,14 +37,13 @@ impl PageCache {
 
         PageCache(
             LruCache::with_capacity(
-                Box::new(|id, page| page.flush(strand, id)),
+                Box::new(|id, page| page.flush(&mut strand, id)),
                 CACHE_CAPACITY,
             )
         )
     }
 }
 
-#[derive(Debug)]
 pub struct LruCache<K, V, F>
 where
     K: Ord + Clone,
@@ -59,7 +59,7 @@ where
 impl<K, V, F> LruCache<K, V, F>
 where
     K: Ord + Clone,
-    F: FnMut(K, &mut V),
+    F: FnMut(K, &mut V) -> Result<()>,
     F: ?Sized,
 {
     pub fn new(purge_callback: Box<F>) -> Self {
@@ -78,14 +78,14 @@ where
     }
 
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        if self.map.contains_key(&key) {
+        if self.items.contains_key(&key) {
             Self::update_key(&mut self.list, &key);
         } else {
             self.prune();
             self.list.push_back(key.clone());
         }
 
-        self.map.insert(key, value).map(|pair| pair.0)
+        self.items.insert(key, value)
     }
 
     pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
@@ -96,15 +96,15 @@ where
         self.list.retain(
             |k| *k.borrow() < *key || *k.borrow() > *key,
         );
-        self.map.remove(key)
+        self.items.remove(key)
     }
 
     pub fn clear(&mut self) {
-        for (key, value) in self.iter_mut() {
-            self.purge_callback(key.clone(), value);
+        for (key, value) in self.mut_iter() {
+            (*self.purge_callback)(key.clone(), value);
         }
 
-        self.map.clear();
+        self.items.clear();
         self.list.clear();
     }
 
@@ -113,7 +113,7 @@ where
         K: Borrow<Q>,
         Q: Ord,
     {
-        self.map.get(key)
+        self.items.get(key)
     }
 
     pub fn get<Q: ?Sized>(&mut self, key: &Q) -> Option<&V>
@@ -124,7 +124,7 @@ where
         self.prune();
         let list = &mut self.list;
 
-        self.map.get_mut(key).map(|result| {
+        self.items.get_mut(key).map(|result| {
             Self::update_key(list, key);
             &result
         })
@@ -138,7 +138,7 @@ where
         self.prune();
         let list = &mut self.list;
 
-        self.map.get_mut(key).map(|result| {
+        self.items.get_mut(key).map(|result| {
             Self::update_key(list, key);
             &mut result
         })
@@ -149,21 +149,21 @@ where
         K: Borrow<Q>,
         Q: Ord,
     {
-        self.map.contains_key(key)
+        self.items.contains_key(key)
     }
 
     pub fn len(&self) -> usize {
-        self.map.len()
+        self.items.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.map.len() == 0
+        self.items.len() == 0
     }
 
     fn prune(&mut self) {
-        while self.map.len() >= self.capacity {
+        while self.items.len() >= self.capacity {
             let _ = self.list.pop_front().map(|key| {
-                assert!(self.map.remove(&key).is_some())
+                assert!(self.items.remove(&key).is_some())
             });
         }
     }
@@ -180,10 +180,27 @@ where
     }
 }
 
+impl<K, V, F> fmt::Debug for LruCache<K, V, F>
+    where
+        K: Ord + Clone,
+        F: FnMut(K, &mut V) -> Result<()>,
+        F: ?Sized,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(&mut f, "LruCache {{")?;
+        writeln!(&mut f, "    items:  {:?}", self.items)?;
+        writeln!(&mut f, "    list: {:?}", self.list)?;
+        writeln!(&mut f, "    capacity: {:?}", self.capacity)?;
+        writeln!(&mut f, "}}")?;
+
+        Ok(())
+    }
+}
+
 impl<K, V, F> Drop for LruCache<K, V, F>
     where
         K: Ord + Clone,
-        F: FnMut(K, &mut V),
+        F: FnMut(K, &mut V) -> Result<()>,
         F: ?Sized,
 {
     fn drop(&mut self) {

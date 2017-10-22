@@ -19,6 +19,7 @@
  *
  */
 
+use std::fmt::{self, Write};
 use std::ops::{Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo};
 use strand::Strand;
 use super::{PAGE_SIZE, Result};
@@ -48,6 +49,23 @@ impl Page {
         }
 
         Ok(())
+    }
+}
+
+// Util
+impl fmt::Debug for Page {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let dirty = match self.dirty {
+            true => " (dirty)",
+            false => "",
+        };
+
+        let mut buffer = String::new();
+        for i in 0..16 {
+            write!(&mut buffer, "{:02x} ", self.bytes[i]).unwrap();
+        }
+
+        write!(&mut f, "Page {}({})", dirty, &buffer)
     }
 }
 
