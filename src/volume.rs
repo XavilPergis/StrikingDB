@@ -27,21 +27,8 @@ use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use self::rentals::VolumeRental;
 use super::{PAGE_SIZE, FilePointer, Result};
 use utils::align;
-
-rental! {
-    mod rentals {
-        use super::*;
-
-        #[rental(debug_borrow, deref_mut_suffix)]
-        pub struct VolumeRental {
-            dev: Box<Device>,
-            strands: Box<[RwLock<Strand<'dev>>]>,
-        }
-    }
-}
 
 #[derive(Debug)]
 struct VolumeOpen {
@@ -78,7 +65,10 @@ impl VolumeOpen {
 }
 
 #[derive(Debug)]
-pub struct Volume(VolumeRental);
+pub struct Volume {
+    dev: Device,
+    strands: Box<[RwLock<Strand>]>,
+}
 
 impl Volume {
     pub fn open(dev: Device, options: &OpenOptions) -> Result<Self> {
@@ -91,34 +81,30 @@ impl Volume {
             dev.trim(0, dev.capacity())?;
         }
 
-        let make_strands = |dev: &Device| {
-            let mut left = dev.capacity();
-            let size = align(dev.capacity() / open.strand_count);
+        let mut left = dev.capacity();
+        let size = align(dev.capacity() / open.strand_count);
 
-            let mut strands = Vec::with_capacity(open.strand_count as usize);
-            for i in 0..open.strand_count {
-                // The first page is reserved for metadata
-                let off = i * size + PAGE_SIZE;
-                let len = cmp::min(size, left);
-                debug_assert_eq!(off % PAGE_SIZE, 0, "Strand offset is not page-aligned");
-                debug_assert_eq!(len % PAGE_SIZE, 0, "Strand length is not page-aligned");
-                debug_assert_ne!(len, 0, "Length of strand must be nonzero");
+        let mut strands = Vec::with_capacity(open.strand_count as usize);
+        for i in 0..open.strand_count {
+            // The first page is reserved for metadata
+            let off = i * size + PAGE_SIZE;
+            let len = cmp::min(size, left);
+            debug_assert_eq!(off % PAGE_SIZE, 0, "Strand offset is not page-aligned");
+            debug_assert_eq!(len % PAGE_SIZE, 0, "Strand length is not page-aligned");
+            debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
-                left -= len;
-                let raw_strand = RawStrand::new(dev, i, off, len, open.read_strand)?;
-                let strand = Strand::new(raw_strand);
-                let lock = RwLock::new(strand);
-                strands.push(lock);
-            }
-            debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
-
-            Ok(strands.into_boxed_slice())
-        };
-
-        match VolumeRental::try_new(Box::new(dev), make_strands) {
-            Ok(rental) => Ok(Volume(rental)),
-            Err(try_err) => Err(try_err.0),
+            left -= len;
+            let raw_strand = RawStrand::new(&dev, i, off, len, open.read_strand)?;
+            let strand = Strand::new(raw_strand);
+            let lock = RwLock::new(strand);
+            strands.push(lock);
         }
+        debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
+
+        Ok(Volume {
+            dev: dev,
+            strands: strands.into_boxed_slice(),
+        })
     }
 
     pub fn read(&self, ptr: FilePointer) -> RwLockReadGuard<Strand> {

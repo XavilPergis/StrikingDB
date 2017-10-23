@@ -22,20 +22,38 @@
 use device::Device;
 use pod::{Pod, StrandHeader};
 use std::mem;
+use std::ops::Deref;
 use super::{PAGE_SIZE, FilePointer, Result};
 use item::Item;
 
 #[derive(Debug)]
-pub struct RawStrand<'a> {
-    dev: &'a Device,
+struct DeviceRef(*const Device);
+
+impl DeviceRef {
+    fn new(item: &Device) -> Self {
+        DeviceRef(item as *const Device)
+    }
+}
+
+impl Deref for DeviceRef {
+    type Target = Device;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0 }
+    }
+}
+
+#[derive(Debug)]
+pub struct RawStrand {
+    dev: DeviceRef,
     start: u64,
     capacity: u64,
     off: u64,
 }
 
-impl<'a> RawStrand<'a> {
+impl RawStrand {
     pub fn new(
-        dev: &'a Device,
+        dev: &Device,
         strand: u64,
         start: u64,
         capacity: u64,
@@ -63,7 +81,7 @@ impl<'a> RawStrand<'a> {
         };
 
         Ok(RawStrand {
-            dev: dev,
+            dev: DeviceRef::new(dev),
             start: start,
             capacity: capacity,
             off: header.offset,

@@ -27,13 +27,13 @@ use std::fmt::{self, Write};
 use std::time::Duration;
 use super::{FilePointer, Result};
 
-pub struct Strand<'a> {
+pub struct Strand {
     cache: LruCache<PageId, Page>,
-    raw: RawStrand<'a>,
+    raw: RawStrand,
 }
 
-impl<'a> Strand<'a> {
-    pub fn new(raw_strand: RawStrand<'a>) -> Self {
+impl Strand {
+    pub fn new(raw_strand: RawStrand) -> Self {
         const CACHE_CAPACITY: usize = 512;
         let cache = LruCache::with_expiry_duration_and_capacity(
             Duration::from_millis(50), CACHE_CAPACITY
@@ -87,7 +87,7 @@ impl<'a> Strand<'a> {
     }
 }
 
-impl<'a> fmt::Debug for Strand<'a> {
+impl fmt::Debug for Strand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Strand(<{} item page cache>, {:?})",
             self.cache.len(), self.raw)
