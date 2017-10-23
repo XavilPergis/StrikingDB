@@ -23,13 +23,13 @@ use item::Item;
 use lru_time_cache::LruCache;
 use page::{Page, PageId};
 use raw_strand::RawStrand;
-use std::fmt::{self, Write};
+use std::fmt;
 use std::time::Duration;
 use super::{FilePointer, Result};
 
 pub struct Strand {
-    cache: LruCache<PageId, Page>,
     raw: RawStrand,
+    cache: LruCache<PageId, Page>,
 }
 
 impl Strand {

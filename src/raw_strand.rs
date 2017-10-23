@@ -20,28 +20,13 @@
  */
 
 use device::Device;
+use item::Item;
 use pod::{Pod, StrandHeader};
 use std::mem;
-use std::ops::Deref;
 use super::{PAGE_SIZE, FilePointer, Result};
-use item::Item;
+use utils::StableRef;
 
-#[derive(Debug)]
-struct DeviceRef(*const Device);
-
-impl DeviceRef {
-    fn new(item: &Device) -> Self {
-        DeviceRef(item as *const Device)
-    }
-}
-
-impl Deref for DeviceRef {
-    type Target = Device;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0 }
-    }
-}
+type DeviceRef = StableRef<Device>;
 
 #[derive(Debug)]
 pub struct RawStrand {
@@ -83,7 +68,7 @@ impl RawStrand {
             } else {
                 let header = StrandHeader::new(strand, PAGE_SIZE);
                 {
-                    let mut slice = &mut buf[0..mem::size_of::<StrandHeader>()];
+                    let slice = &mut buf[0..mem::size_of::<StrandHeader>()];
                     slice.copy_from_slice(header.as_bytes());
                 }
                 dev.write(0, &buf[..])?;
@@ -125,7 +110,7 @@ impl RawStrand {
         self.dev.read(self.start + off, buf)
     }
 
-    pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
+    pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
         let len = buf.len() as u64;
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
@@ -133,7 +118,7 @@ impl RawStrand {
         self.dev.write(self.start + off, buf)
     }
 
-    pub fn trim(&mut self, off: u64, len: u64) -> Result<()> {
+    pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 

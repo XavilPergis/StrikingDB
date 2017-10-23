@@ -23,8 +23,9 @@ use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
+use super::Result;
 use super::device::Device;
-use super::error::{SError, SResult};
+use super::error::SError;
 use super::volume::Volume;
 
 #[derive(Debug)]
@@ -36,7 +37,7 @@ pub struct Store {
 
 impl Store {
     // Create
-    pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
+    pub fn open(file: File, options: OpenOptions) -> Result<Self> {
         // TODO
         let volume = Volume::open(Device::open(file)?, &options)?;
         Ok(Store {
@@ -47,7 +48,7 @@ impl Store {
     }
 
     // Read
-    pub fn lookup(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
+    pub fn lookup(&self, key: &[u8], value: &mut [u8]) -> Result<usize> {
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),
@@ -60,7 +61,7 @@ impl Store {
     }
 
     // Update
-    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert(&self, key: &[u8], value: &[u8]) -> Result<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
@@ -70,7 +71,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn update(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn update(&self, key: &[u8], value: &[u8]) -> Result<()> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -81,7 +82,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn put(&self, key: &[u8], value: &[u8]) -> Result<()> {
         if self.index.key_exists(key) {
             self.remove_item(key)?;
         }
@@ -92,7 +93,7 @@ impl Store {
     }
 
     // Delete
-    pub fn delete(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
+    pub fn delete(&self, key: &[u8], value: &mut [u8]) -> Result<usize> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -110,14 +111,14 @@ impl Store {
         Ok(bytes_witten)
     }
 
-    pub fn remove(&self, key: &[u8]) -> SResult<()> {
+    pub fn remove(&self, key: &[u8]) -> Result<()> {
         match self.remove_item(key) {
             Ok(()) | Err(SError::ItemNotFound) => Ok(()),
             Err(e) => Err(e),
         }
     }
 
-    fn remove_item(&self, key: &[u8]) -> SResult<()> {
+    fn remove_item(&self, key: &[u8]) -> Result<()> {
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),

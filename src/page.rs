@@ -19,24 +19,29 @@
  *
  */
 
+use raw_strand::RawStrand;
 use std::fmt::{self, Write};
 use std::mem;
 use std::ops::{Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo};
-use strand::Strand;
 use super::{PAGE_SIZE, Result};
+use utils::StableRef;
 
 pub type PageId = u64;
+type RawStrandRef = StableRef<RawStrand>;
 
 pub struct Page {
     bytes: [u8; PAGE_SIZE as usize],
+    strand: RawStrandRef,
+    id: PageId,
     dirty: bool,
 }
 
 impl Page {
-    pub fn new(_strand: &Strand, _id: PageId) -> Self {
-        // TODO
+    pub fn new(strand: &RawStrand, id: PageId) -> Self {
         Page {
             bytes: [0; PAGE_SIZE as usize],
+            strand: RawStrandRef::new(strand),
+            id: id,
             dirty: false,
         }
     }
@@ -46,15 +51,11 @@ impl Page {
     }
 
     pub fn flush(&self) -> Result<()> {
-        unimplemented!();
-
-        /*
         if self.dirty() {
-            strand.write(self.id * PAGE_SIZE, &self[..])?;
+            self.strand.write(self.id * PAGE_SIZE, &self[..])?;
         }
 
         Ok(())
-        */
     }
 
     pub fn discard(mut self) {
