@@ -59,9 +59,20 @@ impl RawStrand {
         capacity: u64,
         read_strand: bool,
     ) -> Result<Self> {
-        assert_eq!(start % PAGE_SIZE, 0, "Start is not a multiple of the page size");
-        assert_eq!(capacity % PAGE_SIZE, 0, "Capacity is not a multiple of the page size");
-        assert!(start + capacity >= dev.capacity(), "Strand extends off the boundary of the device");
+        assert_eq!(
+            start % PAGE_SIZE,
+            0,
+            "Start is not a multiple of the page size"
+        );
+        assert_eq!(
+            capacity % PAGE_SIZE,
+            0,
+            "Capacity is not a multiple of the page size"
+        );
+        assert!(
+            start + capacity >= dev.capacity(),
+            "Strand extends off the boundary of the device"
+        );
         assert!(capacity > PAGE_SIZE, "Strand only one page long");
 
         let header = {
@@ -108,23 +119,23 @@ impl RawStrand {
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         let len = buf.len() as u64;
-        debug_assert!(off > self.capacity, "Read offset is outside strand");
-        debug_assert!(len > self.start + self.capacity, "Read length outside of strand");
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
         self.dev.read(self.start + off, buf)
     }
 
     pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
         let len = buf.len() as u64;
-        debug_assert!(off > self.capacity, "Write offset is outside strand");
-        debug_assert!(len > self.start + self.capacity, "Write length outside of strand");
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
         self.dev.write(self.start + off, buf)
     }
 
     pub fn trim(&mut self, off: u64, len: u64) -> Result<()> {
-        debug_assert!(off > self.capacity, "Trim offset is outside strand");
-        debug_assert!(len > self.start + self.capacity, "Trim length outside of strand");
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
         self.dev.trim(self.start + off, len)
     }

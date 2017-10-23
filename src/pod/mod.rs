@@ -34,9 +34,7 @@ pub unsafe trait Pod: Sized {
 
     fn as_bytes<'a>(&'a self) -> &'a [u8] {
         let ptr: *const Self = self;
-        unsafe {
-            slice::from_raw_parts(ptr as *const u8, mem::size_of::<Self>())
-        }
+        unsafe { slice::from_raw_parts(ptr as *const u8, mem::size_of::<Self>()) }
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self> {

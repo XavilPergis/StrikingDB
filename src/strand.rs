@@ -35,9 +35,8 @@ pub struct Strand {
 impl Strand {
     pub fn new(raw_strand: RawStrand) -> Self {
         const CACHE_CAPACITY: usize = 512;
-        let cache = LruCache::with_expiry_duration_and_capacity(
-            Duration::from_millis(50), CACHE_CAPACITY
-        );
+        let cache =
+            LruCache::with_expiry_duration_and_capacity(Duration::from_millis(50), CACHE_CAPACITY);
 
         Strand {
             cache: cache,
@@ -89,7 +88,11 @@ impl Strand {
 
 impl fmt::Debug for Strand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Strand(<{} item page cache>, {:?})",
-            self.cache.len(), self.raw)
+        write!(
+            f,
+            "Strand(<{} item page cache>, {:?})",
+            self.cache.len(),
+            self.raw
+        )
     }
 }
