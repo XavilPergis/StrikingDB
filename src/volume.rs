@@ -22,6 +22,7 @@
 use device::Device;
 use num_cpus;
 use options::{OpenMode, OpenOptions};
+use raw_strand::RawStrand;
 use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::time::Duration;
@@ -30,12 +31,12 @@ use super::{PAGE_SIZE, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
-pub struct StrandPool {
-    dev: Box<Device>,
+pub struct Volume {
+    dev: Box<Device>, // TODO partial rental
     strands: Box<[RwLock<Strand>]>,
 }
 
-impl StrandPool {
+impl Volume {
     pub fn new(dev: Device, options: &OpenOptions) -> Result<Self> {
         let count = options.strands;
 
@@ -64,14 +65,15 @@ impl StrandPool {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            let strand = Strand::new(&dev, i, off, len, options.mode == OpenMode::Open)?;
+            let raw_strand = RawStrand::new(&dev, i, off, len, options.mode == OpenMode::Open)?;
+            let strand = Strand::new(raw_strand);
             let lock = RwLock::new(strand);
             strands.push(lock);
         }
         debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
-        Ok(StrandPool {
-            dev: dev,
+        Ok(Volume {
+            dev: Box::new(dev),
             strands: strands.into_boxed_slice(),
         })
     }

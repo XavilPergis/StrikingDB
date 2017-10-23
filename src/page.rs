@@ -20,6 +20,7 @@
  */
 
 use std::fmt::{self, Write};
+use std::mem;
 use std::ops::{Index, IndexMut, Range, RangeFrom, RangeFull, RangeTo};
 use strand::Strand;
 use super::{PAGE_SIZE, Result};
@@ -49,6 +50,11 @@ impl Page {
         }
 
         Ok(())
+    }
+
+    pub fn discard(self) {
+        self.dirty = false;
+        mem::drop(self);
     }
 }
 

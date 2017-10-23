@@ -25,11 +25,11 @@ use options::OpenOptions;
 use std::fs::File;
 use super::device::Device;
 use super::error::{SError, SResult};
-use super::strand_pool::StrandPool;
+use super::volume::Volume;
 
 #[derive(Debug)]
 pub struct Store {
-    pool: StrandPool,
+    volume: Volume,
     index: Index,
     deleted: Deleted,
 }
@@ -38,9 +38,9 @@ impl Store {
     // Create
     pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
         // TODO
-        let pool = StrandPool::new(Device::open(file)?, &options)?;
+        let volume = Volume::new(Device::open(file)?, &options)?;
         Ok(Store {
-            pool,
+            volume,
             index: Index::new(),
             deleted: Deleted::new(),
         })
@@ -53,7 +53,7 @@ impl Store {
             None => return Err(SError::ItemNotFound),
         };
 
-        let item = self.pool.read(ptr).item(ptr);
+        let item = self.volume.read(ptr).item(ptr);
         let bytes = item.value(value);
 
         Ok(bytes)
@@ -65,7 +65,7 @@ impl Store {
             return Err(SError::ItemExists);
         }
 
-        let ptr = self.pool.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, value)?;
         self.index.put(key, ptr);
         Ok(())
     }
@@ -76,7 +76,7 @@ impl Store {
         }
 
         self.remove_item(key)?;
-        let ptr = self.pool.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, value)?;
         self.index.put(key, ptr);
         Ok(())
     }
@@ -86,7 +86,7 @@ impl Store {
             self.remove_item(key)?;
         }
 
-        let ptr = self.pool.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, value)?;
         self.index.put(key, ptr);
         Ok(())
     }
@@ -102,7 +102,7 @@ impl Store {
             None => return Err(SError::ItemNotFound),
         };
 
-        let item = self.pool.read(ptr).item(ptr);
+        let item = self.volume.read(ptr).item(ptr);
         let bytes_witten = item.value(value);
 
         self.remove_item(key)?;

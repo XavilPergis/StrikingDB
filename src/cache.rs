@@ -19,30 +19,10 @@
  *
  */
 
-use page::{Page, PageId};
 use std::collections::{BTreeMap, VecDeque};
 use std::borrow::Borrow;
 use std::fmt;
-use strand::Strand;
 use super::Result;
-
-pub type PageCleanupFn = FnMut(PageId, &mut Page) -> Result<()>;
-
-#[derive(Debug)]
-pub struct PageCache(LruCache<PageId, Page, PageCleanupFn>);
-
-impl PageCache {
-    pub fn new(strand: &Strand) -> Self {
-        const CACHE_CAPACITY: usize = 512;
-
-        PageCache(
-            LruCache::with_capacity(
-                Box::new(|id, page| page.flush(&mut strand, id)),
-                CACHE_CAPACITY,
-            )
-        )
-    }
-}
 
 pub struct LruCache<K, V, F>
 where

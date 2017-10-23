@@ -48,10 +48,11 @@ mod item;
 mod options;
 mod page;
 mod pod;
+mod raw_strand;
 mod store;
 mod strand;
-mod strand_pool;
 mod utils;
+mod volume;
 
 pub use error::SError as Error;
 pub use error::SResult as Result;
