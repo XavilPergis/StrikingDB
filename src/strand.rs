@@ -19,46 +19,47 @@
  *
  */
 
-use cache::LruCache;
 use item::Item;
+use lru_time_cache::LruCache;
 use page::{Page, PageId};
 use raw_strand::RawStrand;
+use std::fmt::{self, Write};
+use std::time::Duration;
 use super::{FilePointer, Result};
 
-type CleanupFn = FnMut(PageId, &mut Page) -> Result<()>;
-
-#[derive(Debug)]
 pub struct Strand {
-    cache: LruCache<PageId, Page, CleanupFn>,
-    strand: RawStrand,
+    cache: LruCache<PageId, Page>,
+    raw: RawStrand,
 }
 
 impl Strand {
     pub fn new(raw_strand: RawStrand) -> Self {
         const CACHE_CAPACITY: usize = 512;
-
-        let cache = LruCache::with_capacity(
-            Box::new(|id, page| page.flush(&mut raw_strand, id)),
-            CACHE_CAPACITY,
+        let cache = LruCache::with_expiry_duration_and_capacity(
+            Duration::from_millis(50), CACHE_CAPACITY
         );
 
         Strand {
             cache: cache,
-            strand: raw_strand,
+            raw: raw_strand,
         }
     }
 
     #[inline]
     pub fn start(&self) -> u64 {
-        self.strand.start()
+        self.raw.start()
     }
 
     #[inline]
     pub fn capacity(&self) -> u64 {
-        self.strand.capacity()
+        self.raw.capacity()
     }
 
     // FIXME
+    pub fn raw(&self) -> &RawStrand {
+        &self.raw
+    }
+
     pub fn item(&self, ptr: FilePointer) -> Item {
         unimplemented!();
     }
@@ -83,5 +84,12 @@ impl Strand {
         // TODO caching
 
         unimplemented!();
+    }
+}
+
+impl fmt::Debug for Strand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Strand(<{} item page cache>, {:?})",
+            self.cache.len(), self.raw)
     }
 }

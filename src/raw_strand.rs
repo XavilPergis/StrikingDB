@@ -105,7 +105,7 @@ impl RawStrand {
         debug_assert!(off > self.capacity, "Read offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Read length outside of strand");
 
-        self.dev.get().read(self.start + off, &mut buf)
+        self.dev.get().read(self.start + off, buf)
     }
 
     pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
@@ -113,7 +113,7 @@ impl RawStrand {
         debug_assert!(off > self.capacity, "Write offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Write length outside of strand");
 
-        self.dev.get().write(self.start + off, &buf)
+        self.dev.get().write(self.start + off, buf)
     }
 
     pub fn trim(&mut self, off: u64, len: u64) -> Result<()> {

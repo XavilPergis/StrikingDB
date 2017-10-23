@@ -30,6 +30,7 @@ extern crate num_cpus;
 
 #[macro_use]
 extern crate lazy_static;
+extern crate lru_time_cache;
 extern crate parking_lot;
 
 #[macro_use]
@@ -39,7 +40,6 @@ extern crate stable_deref_trait;
 #[macro_use]
 extern crate nix;
 
-mod cache;
 mod deleted;
 mod device;
 mod error;

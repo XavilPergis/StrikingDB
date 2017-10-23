@@ -33,7 +33,8 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn new() -> Self {
+    pub fn new(_strand: &Strand, _id: PageId) -> Self {
+        // TODO
         Page {
             bytes: [0; PAGE_SIZE as usize],
             dirty: false,
@@ -44,15 +45,19 @@ impl Page {
         self.dirty
     }
 
-    pub fn flush(&self, strand: &mut Strand, id: PageId) -> Result<()> {
+    pub fn flush(&self) -> Result<()> {
+        unimplemented!();
+
+        /*
         if self.dirty() {
-            strand.write(id * PAGE_SIZE, &self[..])?;
+            strand.write(self.id * PAGE_SIZE, &self[..])?;
         }
 
         Ok(())
+        */
     }
 
-    pub fn discard(self) {
+    pub fn discard(mut self) {
         self.dirty = false;
         mem::drop(self);
     }
@@ -71,13 +76,13 @@ impl fmt::Debug for Page {
             write!(&mut buffer, "{:02x} ", self.bytes[i]).unwrap();
         }
 
-        write!(&mut f, "Page {}({})", dirty, &buffer)
+        write!(f, "Page {}({})", dirty, &buffer)
     }
 }
 
 impl Drop for Page {
     fn drop(&mut self) {
-        assert!(!self.dirty, "Page dropped while dirty");
+        self.flush().expect("Persisting cached page failed");
     }
 }
 
