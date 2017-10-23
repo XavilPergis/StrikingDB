@@ -27,24 +27,33 @@ use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use self::rentals::VolumeRental;
 use super::{PAGE_SIZE, FilePointer, Result};
 use utils::align;
 
-#[derive(Debug)]
-pub struct Volume {
-    dev: Box<Device>, // TODO partial rental
-    strands: Box<[RwLock<Strand>]>,
+rental! {
+    mod rentals {
+        use super::*;
+
+        #[rental(debug_borrow, deref_mut_suffix)]
+        pub struct VolumeRental {
+            dev: Box<Device>,
+            strands: Box<[RwLock<Strand<'dev>>]>,
+        }
+    }
 }
 
-impl Volume {
-    pub fn new(dev: Device, options: &OpenOptions) -> Result<Self> {
-        let count = options.strands;
+#[derive(Debug)]
+struct VolumeOpen {
+    strand_count: u64,
+    read_strand: bool,
+}
 
-        // TODO handle options
-
+impl VolumeOpen {
+    fn new(dev: &Device, options: &OpenOptions) -> Self {
         const GB: u64 = 1024 * 1024 * 1024;
 
-        let count = match count {
+        let count = match options.strands {
             Some(x) => x as u64,
             None => {
                 let cores = num_cpus::get() as u64;
@@ -52,30 +61,64 @@ impl Volume {
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
-        let mut strands = Vec::with_capacity(count as usize);
 
-        let size = align(dev.capacity() / count);
-
-        // Allocate strands
-        // The first page is reserved for metadata
-        let mut left = dev.capacity();
-        for i in 0..count {
-            let off = i * size + PAGE_SIZE;
-            let len = cmp::min(size, left);
-            debug_assert_ne!(len, 0, "Length of strand must be nonzero");
-
-            left -= len;
-            let raw_strand = RawStrand::new(&dev, i, off, len, options.mode == OpenMode::Open)?;
-            let strand = Strand::new(raw_strand);
-            let lock = RwLock::new(strand);
-            strands.push(lock);
+        VolumeOpen {
+            strand_count: count,
+            read_strand: false,
         }
-        debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
+    }
 
-        Ok(Volume {
-            dev: Box::new(dev),
-            strands: strands.into_boxed_slice(),
-        })
+    fn read(dev: &Device, options: &OpenOptions) -> Result<Self> {
+        let mut buf = [0; PAGE_SIZE as usize];
+        dev.read(0, &mut buf[..])?;
+
+        // TODO read meta block
+        unimplemented!();
+    }
+}
+
+#[derive(Debug)]
+pub struct Volume(VolumeRental);
+
+impl Volume {
+    pub fn open(dev: Device, options: &OpenOptions) -> Result<Self> {
+        let open = match options.mode {
+            OpenMode::Open => VolumeOpen::read(&dev, options)?,
+            OpenMode::Create | OpenMode::Truncate => VolumeOpen::new(&dev, options),
+        };
+
+        if options.mode == OpenMode::Truncate {
+            dev.trim(0, dev.capacity())?;
+        }
+
+        let make_strands = |dev: &Device| {
+            let mut left = dev.capacity();
+            let size = align(dev.capacity() / open.strand_count);
+
+            let mut strands = Vec::with_capacity(open.strand_count as usize);
+            for i in 0..open.strand_count {
+                // The first page is reserved for metadata
+                let off = i * size + PAGE_SIZE;
+                let len = cmp::min(size, left);
+                debug_assert_eq!(off % PAGE_SIZE, 0, "Strand offset is not page-aligned");
+                debug_assert_eq!(len % PAGE_SIZE, 0, "Strand length is not page-aligned");
+                debug_assert_ne!(len, 0, "Length of strand must be nonzero");
+
+                left -= len;
+                let raw_strand = RawStrand::new(dev, i, off, len, open.read_strand)?;
+                let strand = Strand::new(raw_strand);
+                let lock = RwLock::new(strand);
+                strands.push(lock);
+            }
+            debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
+
+            Ok(strands.into_boxed_slice())
+        };
+
+        match VolumeRental::try_new(Box::new(dev), make_strands) {
+            Ok(rental) => Ok(Volume(rental)),
+            Err(try_err) => Err(try_err.0),
+        }
     }
 
     pub fn read(&self, ptr: FilePointer) -> RwLockReadGuard<Strand> {

@@ -25,29 +25,17 @@ use std::mem;
 use super::{PAGE_SIZE, FilePointer, Result};
 use item::Item;
 
-// We use this pointer wrapper class to get
-// around lifetime restrictions on having references
-// to items in the same struct as the owner.
 #[derive(Debug)]
-struct DeviceRef(*const Device);
-
-impl DeviceRef {
-    fn get(&self) -> &Device {
-        unsafe { &*self.0 }
-    }
-}
-
-#[derive(Debug)]
-pub struct RawStrand {
-    dev: DeviceRef,
+pub struct RawStrand<'a> {
+    dev: &'a Device,
     start: u64,
     capacity: u64,
     off: u64,
 }
 
-impl RawStrand {
+impl<'a> RawStrand<'a> {
     pub fn new(
-        dev: &Device,
+        dev: &'a Device,
         strand: u64,
         start: u64,
         capacity: u64,
@@ -75,7 +63,7 @@ impl RawStrand {
         };
 
         Ok(RawStrand {
-            dev: DeviceRef(dev),
+            dev: dev,
             start: start,
             capacity: capacity,
             off: header.offset,
@@ -105,7 +93,7 @@ impl RawStrand {
         debug_assert!(off > self.capacity, "Read offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Read length outside of strand");
 
-        self.dev.get().read(self.start + off, buf)
+        self.dev.read(self.start + off, buf)
     }
 
     pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
@@ -113,13 +101,13 @@ impl RawStrand {
         debug_assert!(off > self.capacity, "Write offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Write length outside of strand");
 
-        self.dev.get().write(self.start + off, buf)
+        self.dev.write(self.start + off, buf)
     }
 
     pub fn trim(&mut self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off > self.capacity, "Trim offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Trim length outside of strand");
 
-        self.dev.get().trim(self.start + off, len)
+        self.dev.trim(self.start + off, len)
     }
 }

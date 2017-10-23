@@ -38,7 +38,7 @@ impl Store {
     // Create
     pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
         // TODO
-        let volume = Volume::new(Device::open(file)?, &options)?;
+        let volume = Volume::open(Device::open(file)?, &options)?;
         Ok(Store {
             volume,
             index: Index::new(),

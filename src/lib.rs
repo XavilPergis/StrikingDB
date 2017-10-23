@@ -26,15 +26,15 @@
 
 #[macro_use]
 extern crate cfg_if;
-extern crate num_cpus;
 
 #[macro_use]
 extern crate lazy_static;
 extern crate lru_time_cache;
+extern crate num_cpus;
 extern crate parking_lot;
 
 #[macro_use]
-extern crate stable_deref_trait;
+extern crate rental;
 
 #[cfg(unix)]
 #[macro_use]
