@@ -1,5 +1,5 @@
 /*
- * lib.rs
+ * cache/write.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,44 +19,12 @@
  *
  */
 
-// FIXME: remove in final version, this is just here so
-// `chargo check`ing doesn't flood the terminal with warnings
-// about unused code
-#![allow(dead_code)]
+#[derive(Debug)]
+pub struct WriteCache;
 
-#[macro_use]
-extern crate cfg_if;
-
-#[macro_use]
-extern crate lazy_static;
-extern crate lru_time_cache;
-extern crate num_cpus;
-extern crate parking_lot;
-
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
-
-mod cache;
-mod deleted;
-mod device;
-mod error;
-mod index;
-mod item;
-mod options;
-mod pod;
-mod store;
-mod strand;
-mod utils;
-mod volume;
-
-pub use error::SError as Error;
-pub use error::SResult as Result;
-pub use store::Store;
-pub use options::{OpenMode, OpenOptions};
-
-const PAGE_SIZE: u64 = 4096;
-pub const MAX_KEY_LEN: usize = 512;
-pub const MAX_VAL_LEN: usize = 65535;
-
-type FilePointer = u64;
+impl WriteCache {
+    #[inline]
+    pub fn new() -> Self {
+        unimplemented!();
+    }
+}

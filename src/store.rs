@@ -19,6 +19,7 @@
  *
  */
 
+use cache::{ReadCache, WriteCache};
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
@@ -33,17 +34,21 @@ pub struct Store {
     volume: Volume,
     index: Index,
     deleted: Deleted,
+    read_cache: ReadCache,
+    // write_cache: WriteCache,
 }
 
 impl Store {
     // Create
     pub fn open(file: File, options: OpenOptions) -> Result<Self> {
-        // TODO
-        let volume = Volume::open(Device::open(file)?, &options)?;
+        let device = Device::open(file)?;
+        let volume = Volume::open(device, &options)?;
+
         Ok(Store {
             volume,
             index: Index::new(),
             deleted: Deleted::new(),
+            read_cache: ReadCache::new(),
         })
     }
 

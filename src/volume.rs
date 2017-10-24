@@ -22,7 +22,6 @@
 use device::Device;
 use num_cpus;
 use options::{OpenMode, OpenOptions};
-use raw_strand::RawStrand;
 use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::time::Duration;
@@ -94,8 +93,7 @@ impl Volume {
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            let raw_strand = RawStrand::new(&dev, i, off, len, open.read_strand)?;
-            let strand = Strand::new(raw_strand);
+            let strand = Strand::new(&dev, i, off, len, open.read_strand)?;
             let lock = RwLock::new(strand);
             strands.push(lock);
         }

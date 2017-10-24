@@ -19,44 +19,79 @@
  *
  */
 
+use device::Device;
 use item::Item;
-use lru_time_cache::LruCache;
-use page::{Page, PageId};
-use raw_strand::RawStrand;
-use std::fmt;
-use std::time::Duration;
-use super::{FilePointer, Result};
+use pod::{Pod, StrandHeader};
+use std::mem;
+use super::{PAGE_SIZE, FilePointer, Result};
+use utils::StableRef;
 
+type DeviceRef = StableRef<Device>;
+
+#[derive(Debug)]
 pub struct Strand {
-    raw: RawStrand,
-    cache: LruCache<PageId, Page>,
+    dev: DeviceRef,
+    start: u64,
+    capacity: u64,
+    off: u64,
 }
 
 impl Strand {
-    pub fn new(raw_strand: RawStrand) -> Self {
-        const CACHE_CAPACITY: usize = 512;
-        let cache =
-            LruCache::with_expiry_duration_and_capacity(Duration::from_millis(50), CACHE_CAPACITY);
+    pub fn new(
+        dev: &Device,
+        strand: u64,
+        start: u64,
+        capacity: u64,
+        read_strand: bool,
+    ) -> Result<Self> {
+        assert_eq!(
+            start % PAGE_SIZE,
+            0,
+            "Start is not a multiple of the page size"
+        );
+        assert_eq!(
+            capacity % PAGE_SIZE,
+            0,
+            "Capacity is not a multiple of the page size"
+        );
+        assert!(
+            start + capacity >= dev.capacity(),
+            "Strand extends off the boundary of the device"
+        );
+        assert!(capacity > PAGE_SIZE, "Strand only one page long");
 
-        Strand {
-            cache: cache,
-            raw: raw_strand,
-        }
+        let header = {
+            let mut buf = [0; PAGE_SIZE as usize];
+            if read_strand {
+                dev.read(0, &mut buf[..])?;
+                Pod::from_bytes(&buf[..mem::size_of::<StrandHeader>()])?
+            } else {
+                let header = StrandHeader::new(strand, PAGE_SIZE);
+                {
+                    let slice = &mut buf[0..mem::size_of::<StrandHeader>()];
+                    slice.copy_from_slice(header.as_bytes());
+                }
+                dev.write(0, &buf[..])?;
+                header
+            }
+        };
+
+        Ok(Strand {
+            dev: DeviceRef::new(dev),
+            start: start,
+            capacity: capacity,
+            off: header.offset,
+        })
     }
 
     #[inline]
     pub fn start(&self) -> u64 {
-        self.raw.start()
+        self.start
     }
 
     #[inline]
     pub fn capacity(&self) -> u64 {
-        self.raw.capacity()
-    }
-
-    // FIXME
-    pub fn raw(&self) -> &RawStrand {
-        &self.raw
+        self.capacity
     }
 
     pub fn item(&self, ptr: FilePointer) -> Item {
@@ -68,31 +103,25 @@ impl Strand {
     }
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
-        // TODO caching
+        let len = buf.len() as u64;
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        unimplemented!();
+        self.dev.read(self.start + off, buf)
     }
 
-    pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
-        // TODO caching
+    pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
+        let len = buf.len() as u64;
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        unimplemented!();
+        self.dev.write(self.start + off, buf)
     }
 
-    pub fn trim(&mut self, off: u64, len: u64) -> Result<()> {
-        // TODO caching
+    pub fn trim(&self, off: u64, len: u64) -> Result<()> {
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        unimplemented!();
-    }
-}
-
-impl fmt::Debug for Strand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Strand(<{} item page cache>, {:?})",
-            self.cache.len(),
-            self.raw
-        )
+        self.dev.trim(self.start + off, len)
     }
 }
