@@ -20,16 +20,17 @@
  */
 
 use device::Device;
-use pod::{Pod, StrandHeader};
-use std::io::Write;
-use std::mem;
-use std::rc::Rc;
-use super::{PAGE_SIZE, FilePointer, Result};
 use item::Item;
+use pod::{Pod, StrandHeader};
+use std::mem;
+use super::{PAGE_SIZE, FilePointer, Result};
+use utils::StableRef;
+
+type DeviceRef = StableRef<Device>;
 
 #[derive(Debug)]
 pub struct Strand {
-    dev: Rc<Device>,
+    dev: DeviceRef,
     start: u64,
     capacity: u64,
     off: u64,
@@ -37,15 +38,26 @@ pub struct Strand {
 
 impl Strand {
     pub fn new(
-        dev: Rc<Device>,
+        dev: &Device,
         strand: u64,
         start: u64,
         capacity: u64,
         read_strand: bool,
     ) -> Result<Self> {
-        assert_eq!(start % PAGE_SIZE, 0, "Start is not a multiple of the page size");
-        assert_eq!(capacity % PAGE_SIZE, 0, "Capacity is not a multiple of the page size");
-        assert!(start + capacity >= dev.capacity(), "Strand extends off the boundary of the device");
+        assert_eq!(
+            start % PAGE_SIZE,
+            0,
+            "Start is not a multiple of the page size"
+        );
+        assert_eq!(
+            capacity % PAGE_SIZE,
+            0,
+            "Capacity is not a multiple of the page size"
+        );
+        assert!(
+            start + capacity >= dev.capacity(),
+            "Strand extends off the boundary of the device"
+        );
         assert!(capacity > PAGE_SIZE, "Strand only one page long");
 
         let header = {
@@ -56,7 +68,7 @@ impl Strand {
             } else {
                 let header = StrandHeader::new(strand, PAGE_SIZE);
                 {
-                    let mut slice = &mut buf[0..mem::size_of::<StrandHeader>()];
+                    let slice = &mut buf[0..mem::size_of::<StrandHeader>()];
                     slice.copy_from_slice(header.as_bytes());
                 }
                 dev.write(0, &buf[..])?;
@@ -65,7 +77,7 @@ impl Strand {
         };
 
         Ok(Strand {
-            dev: dev,
+            dev: DeviceRef::new(dev),
             start: start,
             capacity: capacity,
             off: header.offset,
@@ -91,14 +103,25 @@ impl Strand {
     }
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
-        // TODO caching
+        let len = buf.len() as u64;
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        unimplemented!();
+        self.dev.read(self.start + off, buf)
     }
 
-    pub fn write(&mut self, off: u64, buf: &[u8]) -> Result<()> {
-        // TODO caching
+    pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
+        let len = buf.len() as u64;
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        unimplemented!();
+        self.dev.write(self.start + off, buf)
+    }
+
+    pub fn trim(&self, off: u64, len: u64) -> Result<()> {
+        debug_assert!(off > self.capacity, "Offset is outside strand");
+        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+
+        self.dev.trim(self.start + off, len)
     }
 }

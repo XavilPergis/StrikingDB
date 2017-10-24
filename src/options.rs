@@ -29,7 +29,7 @@ pub enum OpenMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenOptions {
     pub strands: Option<u32>,
-    pub cache: Option<usize>,
+    pub read_cache: Option<usize>,
     pub mode: OpenMode,
 }
 
@@ -37,7 +37,7 @@ impl OpenOptions {
     pub fn new() -> Self {
         OpenOptions {
             strands: None,
-            cache: None,
+            read_cache: None,
             mode: OpenMode::Open,
         }
     }
@@ -47,8 +47,8 @@ impl OpenOptions {
         self
     }
 
-    pub fn cache(&mut self, bytes: usize) -> &mut Self {
-        self.cache = Some(bytes);
+    pub fn read_cache(&mut self, items: usize) -> &mut Self {
+        self.read_cache = Some(items);
         self
     }
 

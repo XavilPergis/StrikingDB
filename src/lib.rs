@@ -26,27 +26,29 @@
 
 #[macro_use]
 extern crate cfg_if;
-extern crate num_cpus;
 
 #[macro_use]
 extern crate lazy_static;
+extern crate lru_time_cache;
+extern crate num_cpus;
 extern crate parking_lot;
 
 #[cfg(unix)]
 #[macro_use]
 extern crate nix;
 
+mod cache;
 mod deleted;
 mod device;
 mod error;
 mod index;
+mod item;
 mod options;
 mod pod;
 mod store;
 mod strand;
-mod strand_pool;
 mod utils;
-mod item;
+mod volume;
 
 pub use error::SError as Error;
 pub use error::SResult as Result;

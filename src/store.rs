@@ -19,80 +19,87 @@
  *
  */
 
+use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
+use super::Result;
 use super::device::Device;
-use super::error::{SError, SResult};
-use super::strand_pool::StrandPool;
+use super::error::SError;
+use super::volume::Volume;
 
 #[derive(Debug)]
 pub struct Store {
-    pool: StrandPool,
+    volume: Volume,
     index: Index,
     deleted: Deleted,
+    cache: ReadCache,
 }
 
 impl Store {
     // Create
-    pub fn open(file: File, options: OpenOptions) -> SResult<Self> {
-        // TODO
-        let pool = StrandPool::new(Device::open(file)?, &options)?;
+    pub fn open(file: File, options: OpenOptions) -> Result<Self> {
+        let device = Device::open(file)?;
+        let volume = Volume::open(device, &options)?;
+
         Ok(Store {
-            pool,
+            volume,
             index: Index::new(),
             deleted: Deleted::new(),
+            cache: ReadCache::new(),
         })
     }
 
     // Read
-    pub fn lookup(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
+    pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
+        if let Some(len) = self.cache.get(key, val) {
+            return Ok(len);
+        }
+
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),
         };
 
-        let item = self.pool.read(ptr).item(ptr);
-        let bytes = item.value(value);
-
-        Ok(bytes)
+        let item = self.volume.read(ptr).item(ptr);
+        Ok(item.value(val))
     }
 
     // Update
-    pub fn insert(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
 
-        let ptr = self.pool.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, val)?;
         self.index.put(key, ptr);
         Ok(())
     }
 
-    pub fn update(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn update(&self, key: &[u8], val: &[u8]) -> Result<()> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
 
         self.remove_item(key)?;
-        let ptr = self.pool.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, val)?;
         self.index.put(key, ptr);
         Ok(())
     }
 
-    pub fn put(&self, key: &[u8], value: &[u8]) -> SResult<()> {
+    pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
         if self.index.key_exists(key) {
             self.remove_item(key)?;
         }
 
-        let ptr = self.pool.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, val)?;
         self.index.put(key, ptr);
         Ok(())
     }
 
     // Delete
-    pub fn delete(&self, key: &[u8], value: &mut [u8]) -> SResult<usize> {
+    pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -102,22 +109,22 @@ impl Store {
             None => return Err(SError::ItemNotFound),
         };
 
-        let item = self.pool.read(ptr).item(ptr);
-        let bytes_witten = item.value(value);
+        let item = self.volume.read(ptr).item(ptr);
+        let bytes_witten = item.value(val);
 
         self.remove_item(key)?;
 
         Ok(bytes_witten)
     }
 
-    pub fn remove(&self, key: &[u8]) -> SResult<()> {
+    pub fn remove(&self, key: &[u8]) -> Result<()> {
         match self.remove_item(key) {
             Ok(()) | Err(SError::ItemNotFound) => Ok(()),
             Err(e) => Err(e),
         }
     }
 
-    fn remove_item(&self, key: &[u8]) -> SResult<()> {
+    fn remove_item(&self, key: &[u8]) -> Result<()> {
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),

@@ -24,28 +24,22 @@ use num_cpus;
 use options::{OpenMode, OpenOptions};
 use strand::Strand;
 use std::cmp::{self, Ordering};
-use std::rc::Rc;
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use super::{PAGE_SIZE, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
-pub struct StrandPool {
-    dev: Rc<Device>,
-    strands: Box<[RwLock<Strand>]>,
+struct VolumeOpen {
+    strand_count: u64,
+    read_strand: bool,
 }
 
-impl StrandPool {
-    pub fn new(dev: Device, options: &OpenOptions) -> Result<Self> {
-        let count = options.strands;
-
-        // TODO handle options
-
+impl VolumeOpen {
+    fn new(dev: &Device, options: &OpenOptions) -> Self {
         const GB: u64 = 1024 * 1024 * 1024;
 
-        let dev = Rc::new(dev);
-        let count = match count {
+        let count = match options.strands {
             Some(x) => x as u64,
             None => {
                 let cores = num_cpus::get() as u64;
@@ -53,26 +47,59 @@ impl StrandPool {
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
-        let mut strands = Vec::with_capacity(count as usize);
 
-        let size = align(dev.capacity() / count);
+        VolumeOpen {
+            strand_count: count,
+            read_strand: false,
+        }
+    }
 
-        // Allocate strands
-        // The first page is reserved for metadata
+    fn read(dev: &Device, options: &OpenOptions) -> Result<Self> {
+        let mut buf = [0; PAGE_SIZE as usize];
+        dev.read(0, &mut buf[..])?;
+
+        // TODO read meta block
+        unimplemented!();
+    }
+}
+
+#[derive(Debug)]
+pub struct Volume {
+    dev: Device,
+    strands: Box<[RwLock<Strand>]>,
+}
+
+impl Volume {
+    pub fn open(dev: Device, options: &OpenOptions) -> Result<Self> {
+        let open = match options.mode {
+            OpenMode::Open => VolumeOpen::read(&dev, options)?,
+            OpenMode::Create | OpenMode::Truncate => VolumeOpen::new(&dev, options),
+        };
+
+        if options.mode == OpenMode::Truncate {
+            dev.trim(0, dev.capacity())?;
+        }
+
         let mut left = dev.capacity();
-        for i in 0..count {
+        let size = align(dev.capacity() / open.strand_count);
+
+        let mut strands = Vec::with_capacity(open.strand_count as usize);
+        for i in 0..open.strand_count {
+            // The first page is reserved for metadata
             let off = i * size + PAGE_SIZE;
             let len = cmp::min(size, left);
+            debug_assert_eq!(off % PAGE_SIZE, 0, "Strand offset is not page-aligned");
+            debug_assert_eq!(len % PAGE_SIZE, 0, "Strand length is not page-aligned");
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
-            let strand = Strand::new(dev.clone(), i, off, len, options.mode == OpenMode::Open)?;
+            let strand = Strand::new(&dev, i, off, len, open.read_strand)?;
             let lock = RwLock::new(strand);
             strands.push(lock);
         }
         debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
-        Ok(StrandPool {
+        Ok(Volume {
             dev: dev,
             strands: strands.into_boxed_slice(),
         })
