@@ -23,10 +23,25 @@ use device::Device;
 use item::Item;
 use pod::{Pod, StrandHeader};
 use std::mem;
+use std::ops::Deref;
 use super::{PAGE_SIZE, FilePointer, Result};
-use utils::StableRef;
 
-type DeviceRef = StableRef<Device>;
+#[derive(Debug)]
+struct DeviceRef(*const Device);
+
+impl DeviceRef {
+    pub fn new(item: &Device) -> Self {
+        DeviceRef(item as *const Device)
+    }
+}
+
+impl Deref for DeviceRef {
+    type Target = Device;
+
+    fn deref(&self) -> &Device {
+        unsafe { &*self.0 }
+    }
+}
 
 #[derive(Debug)]
 pub struct Strand {

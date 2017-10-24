@@ -19,8 +19,6 @@
  *
  */
 
-use std::fmt::Debug;
-use std::ops::Deref;
 use super::PAGE_SIZE;
 
 #[inline]
@@ -37,21 +35,4 @@ pub fn align_up(off: u64) -> u64 {
     }
 
     align_off
-}
-
-#[derive(Debug)]
-pub struct StableRef<T: Debug>(*const T);
-
-impl<T: Debug> StableRef<T> {
-    pub fn new(item: &T) -> Self {
-        StableRef(item as *const T)
-    }
-}
-
-impl<T: Debug> Deref for StableRef<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        unsafe { &*self.0 }
-    }
 }
