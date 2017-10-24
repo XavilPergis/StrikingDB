@@ -30,7 +30,6 @@ pub enum OpenMode {
 pub struct OpenOptions {
     pub strands: Option<u32>,
     pub read_cache: Option<usize>,
-    pub write_cache: Option<usize>,
     pub mode: OpenMode,
 }
 
@@ -39,7 +38,6 @@ impl OpenOptions {
         OpenOptions {
             strands: None,
             read_cache: None,
-            write_cache: None,
             mode: OpenMode::Open,
         }
     }
@@ -49,13 +47,8 @@ impl OpenOptions {
         self
     }
 
-    pub fn read_cache(&mut self, bytes: usize) -> &mut Self {
-        self.read_cache = Some(bytes);
-        self
-    }
-
-    pub fn write_cache(&mut self, bytes: usize) -> &mut Self {
-        self.write_cache = Some(bytes);
+    pub fn read_cache(&mut self, items: usize) -> &mut Self {
+        self.read_cache = Some(items);
         self
     }
 
