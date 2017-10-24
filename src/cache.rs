@@ -20,9 +20,10 @@
  */
 
 use lru_time_cache::LruCache;
-use std::fmt;
+use parking_lot::RwLock;
+use std::{cmp, fmt};
 
-pub struct ReadCache(LruCache<Box<[u8]>, Box<[u8]>>);
+pub struct ReadCache(RwLock<LruCache<Box<[u8]>, Box<[u8]>>>);
 
 impl ReadCache {
     #[inline]
@@ -31,27 +32,45 @@ impl ReadCache {
     }
 
     pub fn with_capacity(items: usize) -> Self {
-        ReadCache(LruCache::with_capacity(items))
+        ReadCache(RwLock::new(LruCache::with_capacity(items)))
     }
 
-    pub fn insert(&mut self, key: &[u8], val: &[u8]) -> Option<Box<[u8]>> {
-        self.0.insert(
+    pub fn key_exists(&self, key: &[u8]) -> bool {
+        let cache = self.0.read();
+        cache.contains_key(key)
+    }
+
+    pub fn insert(&self, key: &[u8], val: &[u8]) -> Option<Box<[u8]>> {
+        let mut cache = self.0.write();
+        cache.insert(
             Vec::from(key).into_boxed_slice(),
             Vec::from(val).into_boxed_slice(),
         )
     }
 
-    pub fn lookup(&mut self, key: &[u8]) -> Option<&[u8]> {
-        self.0.get(key).map(|x| &**x)
+    pub fn get<'a>(&self, key: &[u8], val: &'a mut [u8]) -> Option<&'a [u8]> {
+        let mut cache = self.0.write();
+        cache.get(key).map(move |slice| {
+            let slice = &**slice;
+            let len = cmp::min(val.len(), slice.len());
+
+            let dest = &mut val[..len];
+            let src = &slice[..len];
+            dest.copy_from_slice(src);
+
+            &dest[..]
+        })
     }
 
-    pub fn clear(&mut self) {
-        self.0.clear();
+    pub fn clear(&self) {
+        let mut cache = self.0.write();
+        cache.clear();
     }
 }
 
 impl fmt::Debug for ReadCache {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ReadCache({} items)", self.0.len())
+        let cache = self.0.read();
+        write!(f, "ReadCache({} items)", cache.len())
     }
 }

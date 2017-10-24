@@ -19,7 +19,7 @@
  *
  */
 
-use cache::{ReadCache, WriteCache};
+use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
@@ -34,8 +34,7 @@ pub struct Store {
     volume: Volume,
     index: Index,
     deleted: Deleted,
-    read_cache: ReadCache,
-    // write_cache: WriteCache,
+    cache: ReadCache,
 }
 
 impl Store {
@@ -48,57 +47,61 @@ impl Store {
             volume,
             index: Index::new(),
             deleted: Deleted::new(),
-            read_cache: ReadCache::new(),
+            cache: ReadCache::new(),
         })
     }
 
     // Read
-    pub fn lookup(&self, key: &[u8], value: &mut [u8]) -> Result<usize> {
+    pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
+        if let Some(val_slice) = self.cache.get(key, val) {
+            return Ok(val_slice.len());
+        }
+
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
             None => return Err(SError::ItemNotFound),
         };
 
         let item = self.volume.read(ptr).item(ptr);
-        let bytes = item.value(value);
+        let bytes = item.value(val);
 
         Ok(bytes)
     }
 
     // Update
-    pub fn insert(&self, key: &[u8], value: &[u8]) -> Result<()> {
+    pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
 
-        let ptr = self.volume.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, val)?;
         self.index.put(key, ptr);
         Ok(())
     }
 
-    pub fn update(&self, key: &[u8], value: &[u8]) -> Result<()> {
+    pub fn update(&self, key: &[u8], val: &[u8]) -> Result<()> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
 
         self.remove_item(key)?;
-        let ptr = self.volume.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, val)?;
         self.index.put(key, ptr);
         Ok(())
     }
 
-    pub fn put(&self, key: &[u8], value: &[u8]) -> Result<()> {
+    pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
         if self.index.key_exists(key) {
             self.remove_item(key)?;
         }
 
-        let ptr = self.volume.write().append(key, value)?;
+        let ptr = self.volume.write().append(key, val)?;
         self.index.put(key, ptr);
         Ok(())
     }
 
     // Delete
-    pub fn delete(&self, key: &[u8], value: &mut [u8]) -> Result<usize> {
+    pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -109,7 +112,7 @@ impl Store {
         };
 
         let item = self.volume.read(ptr).item(ptr);
-        let bytes_witten = item.value(value);
+        let bytes_witten = item.value(val);
 
         self.remove_item(key)?;
 
