@@ -53,8 +53,8 @@ impl Store {
 
     // Read
     pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
-        if let Some(val_slice) = self.cache.get(key, val) {
-            return Ok(val_slice.len());
+        if let Some(len) = self.cache.get(key, val) {
+            return Ok(len);
         }
 
         let ptr = match self.index.get(key) {
@@ -63,9 +63,7 @@ impl Store {
         };
 
         let item = self.volume.read(ptr).item(ptr);
-        let bytes = item.value(val);
-
-        Ok(bytes)
+        Ok(item.value(val))
     }
 
     // Update

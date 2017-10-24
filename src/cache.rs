@@ -48,7 +48,7 @@ impl ReadCache {
         )
     }
 
-    pub fn get<'a>(&self, key: &[u8], val: &'a mut [u8]) -> Option<&'a [u8]> {
+    pub fn get(&self, key: &[u8], val: &mut [u8]) -> Option<usize> {
         let mut cache = self.0.write();
         cache.get(key).map(move |slice| {
             let slice = &**slice;
@@ -58,7 +58,7 @@ impl ReadCache {
             let src = &slice[..len];
             dest.copy_from_slice(src);
 
-            &dest[..]
+            len
         })
     }
 
