@@ -44,7 +44,6 @@ mod error;
 mod index;
 mod item;
 mod options;
-mod pod;
 mod store;
 mod strand;
 mod utils;
@@ -56,7 +55,7 @@ pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
 
 const PAGE_SIZE: u64 = 4096;
-pub const MAX_KEY_LEN: usize = 512;
-pub const MAX_VAL_LEN: usize = 65535;
+pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
+pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
 
 type FilePointer = u64;

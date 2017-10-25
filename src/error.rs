@@ -29,6 +29,8 @@ pub type SResult<T> = Result<T, SError>;
 pub enum SError {
     ItemExists,
     ItemNotFound,
+    InvalidKey,
+    InvalidValue,
     FileType,
     Corruption,
     Io(io::Error),

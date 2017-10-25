@@ -24,7 +24,7 @@ use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use std::fs::File;
-use super::Result;
+use super::{Result, MAX_KEY_LEN, MAX_VAL_LEN};
 use super::device::Device;
 use super::error::SError;
 use super::volume::Volume;
@@ -51,8 +51,29 @@ impl Store {
         })
     }
 
+    // Helper
+    #[inline]
+    fn verify_key(key: &[u8]) -> Result<()> {
+        if key.is_empty() || key.len() > MAX_KEY_LEN {
+            Err(SError::InvalidKey)
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
+    fn verify_val(val: &[u8]) -> Result<()> {
+        if val.len() > MAX_VAL_LEN {
+            Err(SError::InvalidValue)
+        } else {
+            Ok(())
+        }
+    }
+
     // Read
     pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
+        Self::verify_key(key)?;
+
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
         }
@@ -68,6 +89,9 @@ impl Store {
 
     // Update
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
+        Self::verify_key(key)?;
+        Self::verify_val(val)?;
+
         if self.index.key_exists(key) {
             return Err(SError::ItemExists);
         }
@@ -78,6 +102,9 @@ impl Store {
     }
 
     pub fn update(&self, key: &[u8], val: &[u8]) -> Result<()> {
+        Self::verify_key(key)?;
+        Self::verify_val(val)?;
+
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -89,6 +116,9 @@ impl Store {
     }
 
     pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
+        Self::verify_key(key)?;
+        Self::verify_val(val)?;
+
         if self.index.key_exists(key) {
             self.remove_item(key)?;
         }
@@ -100,6 +130,8 @@ impl Store {
 
     // Delete
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
+        Self::verify_key(key)?;
+
         if !self.index.key_exists(key) {
             return Err(SError::ItemNotFound);
         }
@@ -118,6 +150,8 @@ impl Store {
     }
 
     pub fn remove(&self, key: &[u8]) -> Result<()> {
+        Self::verify_key(key)?;
+
         match self.remove_item(key) {
             Ok(()) | Err(SError::ItemNotFound) => Ok(()),
             Err(e) => Err(e),

@@ -32,28 +32,23 @@ impl Index {
     }
 
     pub fn key_exists(&self, key: &[u8]) -> bool {
-        let index = self.0.read();
-        index.contains_key(key)
+        self.0.read().contains_key(key)
     }
 
     pub fn get(&self, key: &[u8]) -> Option<FilePointer> {
-        let index = self.0.read();
-        index.get(key).map(|x| *x)
+        self.0.read().get(key).map(|x| *x)
     }
 
     pub fn put(&self, key: &[u8], value: FilePointer) -> Option<FilePointer> {
         let key = Vec::from(key).into_boxed_slice();
-        let mut index = self.0.write();
-        index.insert(key, value)
+        self.0.write().insert(key, value)
     }
 
     pub fn count(&self) -> usize {
-        let index = self.0.read();
-        index.len()
+        self.0.read().len()
     }
 
     pub fn remove(&self, key: &[u8]) -> Option<FilePointer> {
-        let mut index = self.0.write();
-        index.remove(key)
+        self.0.write().remove(key)
     }
 }

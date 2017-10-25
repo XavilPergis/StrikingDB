@@ -19,8 +19,8 @@
  *
  */
 
+use parking_lot::RwLock;
 use std::collections::BTreeSet;
-use std::sync::RwLock;
 use super::FilePointer;
 
 #[derive(Debug)]
@@ -32,17 +32,11 @@ impl Deleted {
     }
 
     pub fn put(&self, value: FilePointer) {
-        let exists = match self.0.write() {
-            Ok(ref mut set) => set.insert(value),
-            Err(ref mut poison) => poison.get_mut().insert(value),
-        };
+        let exists = self.0.write().insert(value);
         assert!(!exists, "Deleted item already tracked");
     }
 
     pub fn count(&self) -> usize {
-        match self.0.read() {
-            Ok(ref set) => set.len(),
-            Err(ref poison) => poison.get_ref().len(),
-        }
+        self.0.read().len()
     }
 }
