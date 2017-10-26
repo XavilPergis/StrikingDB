@@ -43,12 +43,21 @@ impl Deref for DeviceRef {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StrandStats {
+    read_bytes: u64,
+    written_bytes: u64,
+    valid_items: u64,
+    deleted_items: u64,
+}
+
 #[derive(Debug)]
 pub struct Strand {
     dev: DeviceRef,
     start: u64,
     capacity: u64,
     off: u64,
+    stats: StrandStats,
 }
 
 impl Strand {
@@ -96,6 +105,7 @@ impl Strand {
             start: start,
             capacity: capacity,
             off: header.offset,
+            stats: StrandStats::default(),
         })
     }
 
