@@ -20,9 +20,6 @@
  */
 
 use device::Device;
-use item::Item;
-use pod::{Pod, StrandHeader};
-use std::mem;
 use std::ops::Deref;
 use super::{PAGE_SIZE, FilePointer, Result};
 
@@ -88,15 +85,10 @@ impl Strand {
             let mut buf = [0; PAGE_SIZE as usize];
             if read_strand {
                 dev.read(0, &mut buf[..])?;
-                Pod::from_bytes(&buf[..mem::size_of::<StrandHeader>()])?
+                // TODO capnp proto read
             } else {
-                let header = StrandHeader::new(strand, PAGE_SIZE);
-                {
-                    let slice = &mut buf[0..mem::size_of::<StrandHeader>()];
-                    slice.copy_from_slice(header.as_bytes());
-                }
+                // TODO capnp proto write
                 dev.write(0, &buf[..])?;
-                header
             }
         };
 
@@ -119,7 +111,8 @@ impl Strand {
         self.capacity
     }
 
-    pub fn item(&self, ptr: FilePointer) -> Item {
+    pub fn item(&self, ptr: FilePointer) -> () {
+        // TODO replace () with actual item type
         unimplemented!();
     }
 

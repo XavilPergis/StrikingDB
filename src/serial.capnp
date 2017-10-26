@@ -96,11 +96,17 @@ struct Item {
 # be recreated in memory the next
 # time the datastore is opened.
 struct DatastoreState {
-    index @0 :Map(Data, DiskPointer);
-    deleted @1 :List(DiskPointer);
+    index @0 :Map(Data, DiskPointer2);
+    deleted @1 :List(DiskPointer2);
 }
 
-# An arbitrary key-value map.
+# Cap'n proto requires generic parameters
+# to be pointers
+struct DiskPointer2 {
+    pointer @0 :DiskPointer;
+}
+
+# The Cap'n Proto form of a HashMap
 # It should not have duplicate keys.
 struct Map(Key, Value) {
     entries @0 :List(Entry);

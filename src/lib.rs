@@ -24,6 +24,8 @@
 // about unused code
 #![allow(dead_code)]
 
+extern crate capnp;
+
 #[macro_use]
 extern crate cfg_if;
 
@@ -37,12 +39,15 @@ extern crate parking_lot;
 #[macro_use]
 extern crate nix;
 
+mod serial_capnp {
+    include!(concat!(env!("OUT_DIR"), "/serial_capnp.rs"));
+}
+
 mod cache;
 mod deleted;
 mod device;
 mod error;
 mod index;
-mod item;
 mod options;
 mod store;
 mod strand;
