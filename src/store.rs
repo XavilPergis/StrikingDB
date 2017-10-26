@@ -26,7 +26,7 @@ use options::OpenOptions;
 use std::fs::File;
 use super::{Result, MAX_KEY_LEN, MAX_VAL_LEN};
 use super::device::Device;
-use super::error::SError;
+use super::error::Error;
 use super::volume::Volume;
 
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl Store {
     #[inline]
     fn verify_key(key: &[u8]) -> Result<()> {
         if key.is_empty() || key.len() > MAX_KEY_LEN {
-            Err(SError::InvalidKey)
+            Err(Error::InvalidKey)
         } else {
             Ok(())
         }
@@ -64,7 +64,7 @@ impl Store {
     #[inline]
     fn verify_val(val: &[u8]) -> Result<()> {
         if val.len() > MAX_VAL_LEN {
-            Err(SError::InvalidValue)
+            Err(Error::InvalidValue)
         } else {
             Ok(())
         }
@@ -80,7 +80,7 @@ impl Store {
 
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
-            None => return Err(SError::ItemNotFound),
+            None => return Err(Error::ItemNotFound),
         };
 
         let item = self.volume.read(ptr).item(ptr);
@@ -93,7 +93,7 @@ impl Store {
         Self::verify_val(val)?;
 
         if self.index.key_exists(key) {
-            return Err(SError::ItemExists);
+            return Err(Error::ItemExists);
         }
 
         let ptr = self.volume.write().append(key, val)?;
@@ -106,7 +106,7 @@ impl Store {
         Self::verify_val(val)?;
 
         if !self.index.key_exists(key) {
-            return Err(SError::ItemNotFound);
+            return Err(Error::ItemNotFound);
         }
 
         self.remove_item(key)?;
@@ -133,12 +133,12 @@ impl Store {
         Self::verify_key(key)?;
 
         if !self.index.key_exists(key) {
-            return Err(SError::ItemNotFound);
+            return Err(Error::ItemNotFound);
         }
 
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
-            None => return Err(SError::ItemNotFound),
+            None => return Err(Error::ItemNotFound),
         };
 
         let item = self.volume.read(ptr).item(ptr);
@@ -153,7 +153,7 @@ impl Store {
         Self::verify_key(key)?;
 
         match self.remove_item(key) {
-            Ok(()) | Err(SError::ItemNotFound) => Ok(()),
+            Ok(()) | Err(Error::ItemNotFound) => Ok(()),
             Err(e) => Err(e),
         }
     }
@@ -161,7 +161,7 @@ impl Store {
     fn remove_item(&self, key: &[u8]) -> Result<()> {
         let ptr = match self.index.get(key) {
             Some(ptr) => ptr,
-            None => return Err(SError::ItemNotFound),
+            None => return Err(Error::ItemNotFound),
         };
 
         self.deleted.put(ptr);

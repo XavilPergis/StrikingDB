@@ -19,14 +19,14 @@
  *
  */
 
-use std::error::Error;
+use capnp;
 use std::fmt::{self, Display};
-use std::io;
+use std::{error, io, result};
 
-pub type SResult<T> = Result<T, SError>;
+pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
-pub enum SError {
+pub enum Error {
     ItemExists,
     ItemNotFound,
     InvalidKey,
@@ -37,34 +37,35 @@ pub enum SError {
     LowLevel,
 }
 
-impl Error for SError {
+impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
-            &SError::ItemExists => "Item already exists",
-            &SError::ItemNotFound => "Item not found",
-            &SError::FileType => "Invalid file type",
-            &SError::Corruption => "Volume is corrupt",
-            &SError::Io(ref err) => err.description(),
-            &SError::LowLevel => "Low level I/O operation failure",
+            &Error::ItemExists => "Item already exists",
+            &Error::ItemNotFound => "Item not found",
+            &Error::FileType => "Invalid file type",
+            &Error::Corruption => "Volume is corrupt",
+            &Error::Io(ref err) => err.description(),
+            &Error::LowLevel => "Low level I/O operation failure",
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&error::Error> {
         match self {
-            &SError::Io(ref err) => Some(err),
+            &Error::Io(ref err) => Some(err),
             _ => None,
         }
     }
 }
 
-impl Display for SError {
+impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use std::error::Error;
         write!(f, "{}", self.description())
     }
 }
 
-impl From<io::Error> for SError {
+impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        SError::Io(err)
+        Error::Io(err)
     }
 }

@@ -23,6 +23,7 @@
 // `chargo check`ing doesn't flood the terminal with warnings
 // about unused code
 #![allow(dead_code)]
+#![allow(unused)]
 
 extern crate capnp;
 
@@ -51,13 +52,12 @@ mod strand;
 mod utils;
 mod volume;
 
-pub use error::SError as Error;
-pub use error::SResult as Result;
+pub use error::{Error, Result};
 pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
 
-const PAGE_SIZE: u64 = 4096;
 pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
 pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
+const PAGE_SIZE: u64 = 4096;
 
 type FilePointer = u64;
