@@ -2,6 +2,10 @@
 name = "striking-db"
 version = "0.0.1"
 authors = ["Ammon Smith <ammon.i.smith@gmail.com>"]
+build = "build.rs"
+
+[build-dependencies]
+capnpc = "0.8"
 
 [dependencies]
 capnp = "0.8"
