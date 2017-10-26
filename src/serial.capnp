@@ -18,9 +18,18 @@ struct Header {
 }
 
 struct StrandHeader {
+    # Magic constants
     magic @0 :UInt32 = 0x1a456bf6;
     id @1 :UInt32;
+
+    # Configuration
     capacity @2 :UInt64;
+
+    # Stats
+    readBytes @3 :UInt64;
+    writtenBytes @4 :UInt64;
+    validItems @5 :UInt64;
+    deletedItems @6 :UInt64;
 }
 
 struct Item {
