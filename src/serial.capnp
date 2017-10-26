@@ -1,5 +1,6 @@
-@0xdc38b4da1f7b85db
+@0xdc38b4da1f7b85db;
 
+# Top-level
 struct Header {
     # Magic constants
     signature @0 :UInt64 = 0x864d26e37a418b16;
@@ -13,7 +14,7 @@ struct Header {
 
     # Configuration
     strands @2 :UInt32;
-    state @3 :UInt64; # 0 for none
+    statePtr @3 :DiskPointer;
 }
 
 struct StrandHeader {
@@ -28,6 +29,20 @@ struct Item {
 }
 
 struct DatastoreState {
-    index @0 :Map(Data, UInt64);
-    deleted @1 :List(UInt64);
+    index @0 :Map(Data, DiskPointer);
+    deleted @1 :List(DiskPointer);
+}
+
+# Composite
+struct Map(Key, Value) {
+    entries @0 :List(Entry);
+
+    struct Entry {
+        key @0 :Key;
+        value @1 :Value;
+    }
+}
+
+struct DiskPointer {
+    value @0 :UInt64;
 }
