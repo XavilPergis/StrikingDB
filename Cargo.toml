@@ -10,7 +10,6 @@ capnpc = "0.8"
 [dependencies]
 capnp = "0.8"
 cfg-if = "0.1"
-lazy_static = "0.2"
 lru_time_cache = "0.7"
 num_cpus = "1.6"
 parking_lot = "0.4"

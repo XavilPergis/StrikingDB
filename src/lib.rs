@@ -28,9 +28,6 @@ extern crate capnp;
 
 #[macro_use]
 extern crate cfg_if;
-
-#[macro_use]
-extern crate lazy_static;
 extern crate lru_time_cache;
 extern crate num_cpus;
 extern crate parking_lot;

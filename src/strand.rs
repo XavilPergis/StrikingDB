@@ -85,7 +85,7 @@ impl Strand {
             let mut buf = [0; PAGE_SIZE as usize];
             if read_strand {
                 dev.read(0, &mut buf[..])?;
-                // TODO capnp proto read
+            // TODO capnp proto read
             } else {
                 // TODO capnp proto write
                 dev.write(0, &buf[..])?;
