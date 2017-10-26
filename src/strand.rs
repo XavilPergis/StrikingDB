@@ -23,23 +23,6 @@ use device::Device;
 use std::ops::Deref;
 use super::{PAGE_SIZE, FilePointer, Result};
 
-#[derive(Debug)]
-struct DeviceRef(*const Device);
-
-impl DeviceRef {
-    pub fn new(item: &Device) -> Self {
-        DeviceRef(item as *const Device)
-    }
-}
-
-impl Deref for DeviceRef {
-    type Target = Device;
-
-    fn deref(&self) -> &Device {
-        unsafe { &*self.0 }
-    }
-}
-
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StrandStats {
     read_bytes: u64,
@@ -50,7 +33,7 @@ pub struct StrandStats {
 
 #[derive(Debug)]
 pub struct Strand {
-    dev: DeviceRef,
+    dev: *const Device,
     start: u64,
     capacity: u64,
     off: u64,
@@ -93,7 +76,7 @@ impl Strand {
         };
 
         Ok(Strand {
-            dev: DeviceRef::new(dev),
+            dev: dev,
             start: start,
             capacity: capacity,
             off: header.offset,
@@ -125,7 +108,8 @@ impl Strand {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        self.dev.read(self.start + off, buf)
+        let dev = unsafe { &*self.dev };
+        dev.read(self.start + off, buf)
     }
 
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
@@ -133,13 +117,15 @@ impl Strand {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        self.dev.write(self.start + off, buf)
+        let dev = unsafe { &*self.dev };
+        dev.write(self.start + off, buf)
     }
 
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        self.dev.trim(self.start + off, len)
+        let dev = unsafe { &*self.dev };
+        dev.trim(self.start + off, len)
     }
 }
