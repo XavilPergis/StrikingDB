@@ -57,14 +57,16 @@ mod device;
 mod error;
 mod index;
 mod options;
+mod page;
 mod serial;
 mod store;
 mod strand;
 mod utils;
 mod volume;
 
+use page::PAGE_SIZE;
+
 type FilePointer = u64;
-const PAGE_SIZE: u64 = 4096;
 
 /* Reexports */
 pub use error::{Error, Result};

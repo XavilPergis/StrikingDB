@@ -20,63 +20,34 @@
  */
 
 use std::cmp;
-use std::io::{self, BufRead, Read, Seek, SeekFrom};
-use super::{PAGE_SIZE, Page};
+use std::io::{self, BufRead, Cursor, Read, Seek, SeekFrom};
+use super::page::Page;
+use super::strand::Strand;
+use super::{PAGE_SIZE, FilePointer};
 
-pub struct PageReader<'a> {
-    page: &'a Page,
+pub type PageReader<'a> = Cursor<&'a Page>;
+
+#[derive(Debug, Clone)]
+pub struct StrandReader<'a> {
+    strand: &'a Strand,
+    buffer: Page,
+    start: usize,
     cursor: usize,
 }
 
-impl<'a> PageReader<'a> {
-    #[inline]
-    pub fn new(page: &'a Page) -> Self {
-        PageReader {
-            page: page,
+impl<'a> StrandReader<'a> {
+    pub fn new(strand: &'a Strand, ptr: FilePointer) -> Self {
+        StrandReader {
+            strand: strand,
+            buffer: Page::default(),
+            start: ptr.checked_sub(strand.start()).unwrap() as usize,
             cursor: 0,
         }
     }
 }
 
-impl<'a> Seek for PageReader<'a> {
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        let new_cursor: i64 = match pos {
-            SeekFrom::Start(idx) => cmp::min(idx, PAGE_SIZE) as i64,
-            SeekFrom::End(off) => PAGE_SIZE as i64 + off,
-            SeekFrom::Current(off) => cmp::min(self.cursor as i64 + off, PAGE_SIZE as i64),
-        };
-
-        if new_cursor >= 0 {
-            self.cursor = new_cursor as usize;
-            Ok(new_cursor as u64)
-        } else {
-            Err(io::Error::new(io::ErrorKind::InvalidInput, "seek before first byte"))
-        }
-    }
-}
-
-impl<'a> Read for PageReader<'a> {
+impl<'a> Read for StrandReader<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let len = cmp::min(PAGE_SIZE as usize - self.cursor, buf.len());
-        let src = &self.page[self.cursor..self.cursor+len];
-        let dest = &mut buf[..len];
-        dest.copy_from_slice(src);
-
-        self.cursor += len;
-        Ok(len)
+        // TODO small buffering
     }
 }
-
-impl<'a> BufRead for PageReader<'a> {
-    #[inline]
-    fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        Ok(&self.page[..])
-    }
-
-    #[inline]
-    fn consume(&mut self, amt: usize) {
-        self.cursor = cmp::min(PAGE_SIZE as usize, self.cursor + amt);
-    }
-}
-
-pub struct StrandReader;

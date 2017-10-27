@@ -31,7 +31,7 @@ pub struct ReadItem<'a>(item::Reader<'a>);
 
 impl<'a> ReadItem<'a> {
     pub fn read(strand: &'a Strand, ptr: FilePointer) -> Result<Self> {
-        let mut strand_reader = StrandReader::new(strand);
+        let mut strand_reader = StrandReader::new(strand, ptr);
         let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;
         let item_reader = msg_reader.get_root::<item::Reader>()?;
 

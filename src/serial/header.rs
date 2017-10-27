@@ -21,9 +21,10 @@
 
 use capnp::serialize_packed;
 use capnp::message::ReaderOptions;
+use super::page::Page;
 use super::serial_capnp;
 use super::strand::StrandStats;
-use super::{PAGE_SIZE, VERSION, Error, FilePointer, Page, PageReader, Result};
+use super::{PAGE_SIZE, VERSION, Error, FilePointer, PageReader, Result};
 
 #[derive(Debug, Clone)]
 pub struct VolumeHeader {
