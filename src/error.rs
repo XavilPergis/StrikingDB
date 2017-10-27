@@ -27,31 +27,43 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
+    FileType,
+    Corruption,
+    OutOfSpace,
     ItemExists,
     ItemNotFound,
     InvalidKey,
     InvalidValue,
-    FileType,
-    Corruption,
+    Unimplemented,
+    Network,
     Io(io::Error),
     LowLevel,
 }
 
 impl error::Error for Error {
     fn description(&self) -> &str {
+        use Error::*;
+
         match self {
-            &Error::ItemExists => "Item already exists",
-            &Error::ItemNotFound => "Item not found",
-            &Error::FileType => "Invalid file type",
-            &Error::Corruption => "Volume is corrupt",
-            &Error::Io(ref err) => err.description(),
-            &Error::LowLevel => "Low level I/O operation failure",
+            &FileType => "Invalid file type",
+            &OutOfSpace => "Volume is out of space",
+            &Corruption => "Volume is corrupt",
+            &ItemExists => "Item already exists",
+            &ItemNotFound => "Item not found",
+            &InvalidKey => "Specified key was invalid",
+            &InvalidValue => "Specified value was invalid",
+            &Unimplemented => "That operation isn't implemented yet",
+            &Network => "General network error",
+            &Io(ref err) => err.description(),
+            &LowLevel => "Low level I/O operation failure",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
+        use Error::*;
+
         match self {
-            &Error::Io(ref err) => Some(err),
+            &Io(ref err) => Some(err),
             _ => None,
         }
     }
@@ -67,5 +79,18 @@ impl Display for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::Io(err)
+    }
+}
+
+impl From<capnp::Error> for Error {
+    fn from(err: capnp::Error) -> Self {
+        use capnp::ErrorKind::*;
+
+        match err.kind {
+            Failed => Error::Corruption,
+            Overloaded => Error::OutOfSpace,
+            Disconnected => Error::Network,
+            Unimplemented => Error::Unimplemented,
+        }
     }
 }
