@@ -20,7 +20,7 @@
  */
 
 use std::cmp;
-use std::io::{self, BufRead, Seek, SeekFrom};
+use std::io::{self, BufRead, Read, Seek, SeekFrom};
 use super::{PAGE_SIZE, Page};
 
 pub struct PageReader<'a> {
@@ -52,6 +52,30 @@ impl<'a> Seek for PageReader<'a> {
         } else {
             Err(io::Error::new(io::ErrorKind::InvalidInput, "seek before first byte"))
         }
+    }
+}
+
+impl<'a> Read for PageReader<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let len = cmp::min(PAGE_SIZE as usize - self.cursor, buf.len());
+        let src = &self.page[self.cursor..self.cursor+len];
+        let dest = &mut buf[..len];
+        dest.copy_from_slice(src);
+
+        self.cursor += len;
+        Ok(len)
+    }
+}
+
+impl<'a> BufRead for PageReader<'a> {
+    #[inline]
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        Ok(&self.page[..])
+    }
+
+    #[inline]
+    fn consume(&mut self, amt: usize) {
+        self.cursor = cmp::min(PAGE_SIZE as usize, self.cursor + amt);
     }
 }
 
