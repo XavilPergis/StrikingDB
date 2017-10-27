@@ -23,13 +23,16 @@
 using Magic = UInt64;
 using DiskPointer = UInt64;
 
+const volumeMagic :Magic = 0x864d26e37a418b16;
+const strandMagic :Magic = 0x1a456bf69dbf40c8;
+
 # The header present on the first page of any
 # volume. The values here are checked to ensure
 # consistency and sanity, as well as provide
 # meta information to generate the datastore
 # from disk.
 struct Header {
-    signature @0 :Magic = 0x864d26e37a418b16;
+    signature @0 :Magic;
     version @1 :Version;
 
     # Represents the version of StrikingDB
@@ -59,7 +62,7 @@ struct Header {
 # it, but also this is where statistics about
 # the datastore are stored.
 struct StrandHeader {
-    signature @0 :Magic = 0x1a456bf69dbf40c8;
+    signature @0 :Magic;
     id @1 :UInt32;
 
     # How large this strand is.
@@ -70,17 +73,27 @@ struct StrandHeader {
     # overrun a strand's bounds.
     capacity @2 :UInt64;
 
-    # The total number of bytes read from this strand
-    readBytes @3 :UInt64;
+    # Stores various statistics and other numbers of
+    # interest about this strand
+    stats @3 :Stats;
 
-    # The total number of bytes written to this strand
-    writtenBytes @4 :UInt64;
+    struct Stats {
+        # The total number of bytes read from this strand
+        readBytes @0 :UInt64;
 
-    # The number of valid items in this strand
-    validItems @5 :UInt64;
+        # The total number of bytes written to this strand
+        writtenBytes @1 :UInt64;
 
-    # The number of deleted items in this strand awaiting GC
-    deletedItems @6 :UInt64;
+        # The number of valid items in this strand
+        validItems @2 :UInt64;
+
+        # The number of deleted items in this strand awaiting GC
+        deletedItems @3 :UInt64;
+    }
+
+    # How many bytes from the start to the free area of the strand
+    # Must be updated on every write
+    offset @4 :UInt64;
 }
 
 # Represents a single item on a strand
