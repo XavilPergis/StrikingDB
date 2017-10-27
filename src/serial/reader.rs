@@ -44,10 +44,8 @@ impl<'a> StrandReader<'a> {
             cursor: 0,
         }
     }
-}
 
-impl<'a> Read for StrandReader<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        // TODO small buffering
+    pub fn into_strand(self) -> &'a Strand {
+        self.strand
     }
 }

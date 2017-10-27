@@ -37,8 +37,7 @@ pub enum Error {
     InvalidValue,
     Unimplemented,
     Network,
-    Io(io::Error),
-    LowLevel,
+    Io(Option<io::Error>),
 }
 
 impl error::Error for Error {
@@ -56,8 +55,8 @@ impl error::Error for Error {
             &InvalidValue => "Specified value was invalid",
             &Unimplemented => "That operation isn't implemented yet",
             &Network => "General network error",
-            &Io(ref err) => err.description(),
-            &LowLevel => "Low level I/O operation failure",
+            &Io(Some(ref err)) => err.description(),
+            &Io(None) => "Low level I/O operation failure",
         }
     }
 
@@ -65,7 +64,7 @@ impl error::Error for Error {
         use Error::*;
 
         match self {
-            &Io(ref err) => Some(err),
+            &Io(Some(ref err)) => Some(err),
             _ => None,
         }
     }
@@ -80,7 +79,7 @@ impl Display for Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Error::Io(err)
+        Error::Io(Some(err))
     }
 }
 

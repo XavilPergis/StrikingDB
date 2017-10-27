@@ -41,12 +41,12 @@ fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
 
         match result {
             Ok(_) => Ok((capacity, true)),
-            Err(_) => Err(Error::LowLevel),
+            Err(_) => Err(Error::Io(None)),
         }
     } else if ftype.is_file() {
         match fh.seek(SeekFrom::End(0)) {
             Ok(capacity) => Ok((capacity, false)),
-            Err(e) => Err(Error::Io(e)),
+            Err(e) => Err(Error::Io(Some(e))),
         }
     } else {
         Err(Error::FileType)
@@ -92,7 +92,7 @@ impl Device {
                 assert_eq!(read, buf.len(), "Did not read full buffer");
                 Ok(())
             }
-            Err(e) => Err(Error::Io(e)),
+            Err(e) => Err(Error::Io(Some(e))),
         }
     }
 
@@ -107,7 +107,7 @@ impl Device {
                 assert_eq!(written, buf.len(), "Did not write full buffer");
                 Ok(())
             }
-            Err(e) => Err(Error::Io(e)),
+            Err(e) => Err(Error::Io(Some(e))),
         }
     }
 
@@ -123,7 +123,7 @@ impl Device {
 
             match result {
                 Ok(_) => Ok(()),
-                Err(_) => Err(Error::LowLevel),
+                Err(_) => Err(Error::Io(None)),
             }
         } else {
             let ret = unsafe {
@@ -137,7 +137,7 @@ impl Device {
 
             match ret {
                 0 => Ok(()),
-                _ => Err(Error::LowLevel),
+                _ => Err(Error::Io(None)),
             }
         }
     }
