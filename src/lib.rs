@@ -29,6 +29,10 @@ extern crate capnp;
 
 #[macro_use]
 extern crate cfg_if;
+
+#[macro_use]
+extern crate lazy_static;
+
 extern crate lru_time_cache;
 extern crate num_cpus;
 extern crate parking_lot;
@@ -37,27 +41,47 @@ extern crate parking_lot;
 #[macro_use]
 extern crate nix;
 
+/* Generated sources */
+mod build {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 mod serial_capnp {
     include!(concat!(env!("OUT_DIR"), "/serial_capnp.rs"));
 }
 
+/* Private fields */
 mod cache;
 mod deleted;
 mod device;
 mod error;
 mod index;
 mod options;
+mod serial;
 mod store;
 mod strand;
 mod utils;
 mod volume;
 
+type FilePointer = u64;
+const PAGE_SIZE: u64 = 4096;
+
+/* Reexports */
 pub use error::{Error, Result};
 pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
 
+/* Constants */
 pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
 pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
-const PAGE_SIZE: u64 = 4096;
+pub const VERSION_STR: &'static str = build::PKG_VERSION;
 
-type FilePointer = u64;
+lazy_static! {
+    pub static ref VERSION: (u8, u8, u8) = {
+        let major = build::PKG_VERSION_MAJOR.parse::<u8>().unwrap();
+        let minor = build::PKG_VERSION_MINOR.parse::<u8>().unwrap();
+        let patch = build::PKG_VERSION_PATCH.parse::<u8>().unwrap();
+
+        (major, minor, patch)
+    };
+}

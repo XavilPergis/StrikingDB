@@ -51,7 +51,7 @@ impl Store {
         })
     }
 
-    // Helper
+    // Helper methods
     #[inline]
     fn verify_key(key: &[u8]) -> Result<()> {
         if key.is_empty() || key.len() > MAX_KEY_LEN {

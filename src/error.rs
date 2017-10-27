@@ -28,7 +28,8 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     FileType,
-    Corruption,
+    Corrupt,
+    IncompatibleVersion,
     OutOfSpace,
     ItemExists,
     ItemNotFound,
@@ -47,7 +48,8 @@ impl error::Error for Error {
         match self {
             &FileType => "Invalid file type",
             &OutOfSpace => "Volume is out of space",
-            &Corruption => "Volume is corrupt",
+            &Corrupt => "Volume is corrupt",
+            &IncompatibleVersion => "Volume is formatted with incompatible version",
             &ItemExists => "Item already exists",
             &ItemNotFound => "Item not found",
             &InvalidKey => "Specified key was invalid",
@@ -87,7 +89,7 @@ impl From<capnp::Error> for Error {
         use capnp::ErrorKind::*;
 
         match err.kind {
-            Failed => Error::Corruption,
+            Failed => Error::Corrupt,
             Overloaded => Error::OutOfSpace,
             Disconnected => Error::Network,
             Unimplemented => Error::Unimplemented,

@@ -1,5 +1,5 @@
 /*
- * build.rs
+ * serial/writer.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,15 +19,6 @@
  *
  */
 
-extern crate built;
-extern crate capnpc;
+pub struct PageWriter;
 
-fn main() {
-    built::write_built_file().expect("Compile-time information dump failed");
-
-    capnpc::CompilerCommand::new()
-        .src_prefix("src")
-        .file("src/serial.capnp")
-        .run()
-        .expect("Capnp proto compilation failed");
-}
+pub struct StrandWriter;

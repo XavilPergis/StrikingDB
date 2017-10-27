@@ -31,7 +31,7 @@ const strandMagic :Magic = 0x1a456bf69dbf40c8;
 # consistency and sanity, as well as provide
 # meta information to generate the datastore
 # from disk.
-struct Header {
+struct VolumeHeader {
     signature @0 :Magic;
     version @1 :Version;
 
