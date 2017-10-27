@@ -83,8 +83,9 @@ impl Store {
             None => return Err(Error::ItemNotFound),
         };
 
-        let item = self.volume.read(ptr).item(ptr);
-        Ok(item.value(val))
+        unimplemented!();
+        // let item = self.volume.read(ptr).item(ptr);
+        // Ok(item.value(val))
     }
 
     // Update
@@ -141,12 +142,13 @@ impl Store {
             None => return Err(Error::ItemNotFound),
         };
 
-        let item = self.volume.read(ptr).item(ptr);
-        let bytes_witten = item.value(val);
+        unimplemented!();
+        // let item = self.volume.read(ptr).item(ptr);
+        // let bytes_witten = item.value(val);
 
-        self.remove_item(key)?;
+        // self.remove_item(key)?;
 
-        Ok(bytes_witten)
+        // Ok(bytes_witten)
     }
 
     pub fn remove(&self, key: &[u8]) -> Result<()> {

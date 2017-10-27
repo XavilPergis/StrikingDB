@@ -79,7 +79,8 @@ impl Strand {
             dev: dev,
             start: start,
             capacity: capacity,
-            off: header.offset,
+            // FIXME off: header.offset,
+            off: 0,
             stats: StrandStats::default(),
         })
     }
