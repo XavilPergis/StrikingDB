@@ -19,6 +19,40 @@
  *
  */
 
-pub struct PageReader;
+use std::cmp;
+use std::io::{self, BufRead, Seek, SeekFrom};
+use super::{PAGE_SIZE, Page};
+
+pub struct PageReader<'a> {
+    page: &'a Page,
+    cursor: usize,
+}
+
+impl<'a> PageReader<'a> {
+    #[inline]
+    pub fn new(page: &'a Page) -> Self {
+        PageReader {
+            page: page,
+            cursor: 0,
+        }
+    }
+}
+
+impl<'a> Seek for PageReader<'a> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        let new_cursor: i64 = match pos {
+            SeekFrom::Start(idx) => cmp::min(idx, PAGE_SIZE) as i64,
+            SeekFrom::End(off) => PAGE_SIZE as i64 + off,
+            SeekFrom::Current(off) => cmp::min(self.cursor as i64 + off, PAGE_SIZE as i64),
+        };
+
+        if new_cursor >= 0 {
+            self.cursor = new_cursor as usize;
+            Ok(new_cursor as u64)
+        } else {
+            Err(io::Error::new(io::ErrorKind::InvalidInput, "seek before first byte"))
+        }
+    }
+}
 
 pub struct StrandReader;
