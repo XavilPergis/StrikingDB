@@ -31,6 +31,18 @@ use super::{FilePointer, Result, StrandReader};
 pub struct ReadContext<'a>(item::Reader<'a>);
 
 impl<'a> ReadContext<'a> {
+    #[inline]
+    pub fn key(&self) -> Result<&[u8]> {
+        let slice = self.0.get_key()?;
+        Ok(slice)
+    }
+
+    #[inline]
+    pub fn val(&self) -> Result<&[u8]> {
+        let slice = self.0.get_value()?;
+        Ok(slice)
+    }
+
     fn copy_slice(slice: &[u8], buffer: &mut [u8]) -> usize {
         let len = cmp::min(slice.len(), buffer.len());
 
