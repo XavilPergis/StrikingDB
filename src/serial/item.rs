@@ -19,50 +19,64 @@
  *
  */
 
+use capnp::message::{Reader, ReaderOptions};
+use capnp::serialize::OwnedSegments;
 use capnp::serialize_packed;
-use capnp::message::ReaderOptions;
 use std::cmp;
 use super::serial_capnp::item;
 use super::strand::Strand;
 use super::{FilePointer, Result, StrandReader};
 
 #[derive(Clone)]
-pub struct ReadItem<'a>(item::Reader<'a>);
+pub struct ReadContext<'a>(item::Reader<'a>);
 
-impl<'a> ReadItem<'a> {
-    pub fn read(strand: &'a Strand, ptr: FilePointer) -> Result<Self> {
-        let mut strand_reader = StrandReader::new(strand, ptr);
-        let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;
-        let item_reader = msg_reader.get_root::<item::Reader>()?;
+impl<'a> ReadContext<'a> {
+    fn copy_slice(slice: &[u8], buffer: &mut [u8]) -> usize {
+        let len = cmp::min(slice.len(), buffer.len());
 
-        Ok(ReadItem(item_reader))
+        let dest = &mut buffer[..len];
+        let src = &slice[..len];
+        dest.copy_from_slice(src);
+
+        len
     }
 
     #[inline]
     pub fn copy_key(&self, key_buf: &mut [u8]) -> Result<usize> {
         let slice = self.0.get_key()?;
-        let len = cmp::min(slice.len(), key_buf.len());
-
-        let dest = &mut key_buf[..len];
-        let src = &slice[..len];
-        dest.copy_from_slice(src);
-
-        Ok(len)
+        Ok(Self::copy_slice(slice, key_buf))
     }
 
     #[inline]
-    pub fn copy_value(&self, val_buf: &mut [u8]) -> Result<usize> {
+    pub fn copy_val(&self, val_buf: &mut [u8]) -> Result<usize> {
         let slice = self.0.get_value()?;
-        let len = cmp::min(slice.len(), val_buf.len());
-
-        let dest = &mut val_buf[..len];
-        let src = &slice[..len];
-        dest.copy_from_slice(src);
-
-        Ok(len)
+        Ok(Self::copy_slice(slice, val_buf))
     }
 }
 
 #[derive(Clone)]
-// TODO
-pub struct WriteItem;
+pub struct WriteContext;
+
+impl WriteContext {
+    // TODO
+}
+
+#[derive(Debug, Clone)]
+pub struct Item;
+
+impl Item {
+    pub fn read<F, T>(strand: &Strand, ptr: FilePointer, func: F) -> Result<T>
+        where F: FnOnce(ReadContext) -> T
+    {
+        let mut strand_reader = StrandReader::new(strand, ptr);
+        let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;
+        let item_reader = msg_reader.get_root::<item::Reader>()?;
+        let ctx = ReadContext(item_reader);
+
+        Ok(func(ctx))
+    }
+
+    pub fn write(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePointer> {
+        unimplemented!();
+    }
+}

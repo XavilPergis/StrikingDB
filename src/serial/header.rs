@@ -28,8 +28,8 @@ use super::{PAGE_SIZE, VERSION, Error, FilePointer, PageReader, Result};
 
 #[derive(Debug, Clone)]
 pub struct VolumeHeader {
-    strands: u32,
-    state_ptr: Option<FilePointer>,
+    pub strands: u32,
+    pub state_ptr: Option<FilePointer>,
 }
 
 impl VolumeHeader {
@@ -72,10 +72,10 @@ impl VolumeHeader {
 
 #[derive(Debug, Clone)]
 pub struct StrandHeader {
-    id: u32,
-    capacity: u64,
-    offset: u64,
-    stats: StrandStats,
+    pub id: u32,
+    pub capacity: u64,
+    pub offset: u64,
+    pub stats: StrandStats,
 }
 
 impl StrandHeader {

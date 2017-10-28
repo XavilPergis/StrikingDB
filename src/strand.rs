@@ -25,10 +25,10 @@ use super::{PAGE_SIZE, FilePointer, Result};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StrandStats {
-    read_bytes: u64,
-    written_bytes: u64,
-    valid_items: u64,
-    deleted_items: u64,
+    pub read_bytes: u64,
+    pub written_bytes: u64,
+    pub valid_items: u64,
+    pub deleted_items: u64,
 }
 
 #[derive(Debug)]
