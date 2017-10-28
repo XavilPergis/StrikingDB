@@ -30,13 +30,19 @@ use super::{PAGE_SIZE, VERSION};
 
 #[derive(Debug, Clone)]
 pub struct VolumeHeader {
-    pub strands: u32,
+    strands: u32,
     pub state_ptr: Option<FilePointer>,
 }
 
 impl VolumeHeader {
-    pub fn read(page: &Page) -> Result<Self> {
+    pub fn new(strands: u32) -> Self {
+        VolumeHeader {
+            strands: strands,
+            state_ptr: None,
+        }
+    }
 
+    pub fn read(page: &Page) -> Result<Self> {
         let mut page_reader = PageReader::new(page);
         let msg_reader = serialize_packed::read_message(&mut page_reader, ReaderOptions::new())?;
         let header = msg_reader.get_root::<volume_header::Reader>()?;
@@ -69,6 +75,15 @@ impl VolumeHeader {
             state_ptr: state_ptr,
         })
     }
+
+    pub fn write(&self, page: &mut Page) -> Result<()> {
+
+    }
+
+    #[inline]
+    pub fn strands(&self) -> u32 {
+        self.strands
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +95,15 @@ pub struct StrandHeader {
 }
 
 impl StrandHeader {
+    pub fn new(id: u32, capacity: u64) -> Self {
+        StrandHeader {
+            id: id,
+            capacity: capacity,
+            offset: 0,
+            stats: StrandStats::default(),
+        }
+    }
+
     pub fn read(page: &Page) -> Result<Self> {
         let mut page_reader = PageReader::new(page);
         let msg_reader = serialize_packed::read_message(&mut page_reader, ReaderOptions::new())?;
