@@ -19,13 +19,12 @@
  *
  */
 
-use capnp::message::{Reader, ReaderOptions};
-use capnp::serialize::OwnedSegments;
+use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
 use std::cmp;
 use super::serial_capnp::item;
 use super::strand::Strand;
-use super::{FilePointer, Result, StrandReader};
+use super::{FilePointer, Result, StrandReader, StrandWriter};
 
 #[derive(Clone)]
 pub struct ReadContext<'a>(item::Reader<'a>);
@@ -66,29 +65,36 @@ impl<'a> ReadContext<'a> {
     }
 }
 
-#[derive(Clone)]
-pub struct WriteContext;
-
-impl WriteContext {
-    // TODO
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Item;
 
 impl Item {
-    pub fn read<F, T>(strand: &Strand, ptr: FilePointer, func: F) -> Result<T>
-        where F: FnOnce(ReadContext) -> T
+    pub fn read<F, R>(strand: &Strand, ptr: FilePointer, func: F) -> Result<R>
+        where F: FnOnce(ReadContext) -> R
     {
+        // Set up readers
         let mut strand_reader = StrandReader::new(strand, ptr);
         let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;
-        let item_reader = msg_reader.get_root::<item::Reader>()?;
-        let ctx = ReadContext(item_reader);
+        let item = msg_reader.get_root::<item::Reader>()?;
+        let ctx = ReadContext(item);
 
+        // Run callback and return
         Ok(func(ctx))
     }
 
     pub fn write(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePointer> {
-        unimplemented!();
+        // Set up builders
+        let mut message = Builder::new_default();
+        let mut item = message.init_root::<item::Builder>();
+
+        // Set fields
+        item.set_key(key);
+        item.set_value(val);
+
+        // Write data
+        let mut strand_writer = StrandWriter::new(strand);
+        serialize_packed::write_message(&mut strand_writer, &message)?;
+
+        Ok(strand_writer.get_pointer())
     }
 }

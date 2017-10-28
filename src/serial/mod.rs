@@ -27,6 +27,6 @@ mod writer;
 use super::*;
 
 pub use self::header::{StrandHeader, VolumeHeader};
-pub use self::item::{Item, ReadContext, WriteContext};
+pub use self::item::{Item, ReadContext};
 pub use self::reader::{PageReader, StrandReader};
 pub use self::writer::{PageWriter, StrandWriter};

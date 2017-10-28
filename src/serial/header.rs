@@ -19,12 +19,14 @@
  *
  */
 
+use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
-use capnp::message::ReaderOptions;
+use serial_capnp::{strand_header, volume_header};
 use super::page::Page;
 use super::serial_capnp;
 use super::strand::StrandStats;
-use super::{PAGE_SIZE, VERSION, Error, FilePointer, PageReader, Result};
+use super::{Error, FilePointer, PageReader, PageWriter, Result};
+use super::{PAGE_SIZE, VERSION};
 
 #[derive(Debug, Clone)]
 pub struct VolumeHeader {
@@ -34,7 +36,6 @@ pub struct VolumeHeader {
 
 impl VolumeHeader {
     pub fn read(page: &Page) -> Result<Self> {
-        use serial_capnp::volume_header;
 
         let mut page_reader = PageReader::new(page);
         let msg_reader = serialize_packed::read_message(&mut page_reader, ReaderOptions::new())?;
@@ -72,16 +73,14 @@ impl VolumeHeader {
 
 #[derive(Debug, Clone)]
 pub struct StrandHeader {
-    pub id: u32,
-    pub capacity: u64,
+    id: u32,
+    capacity: u64,
     pub offset: u64,
     pub stats: StrandStats,
 }
 
 impl StrandHeader {
     pub fn read(page: &Page) -> Result<Self> {
-        use serial_capnp::strand_header;
-
         let mut page_reader = PageReader::new(page);
         let msg_reader = serialize_packed::read_message(&mut page_reader, ReaderOptions::new())?;
         let header = msg_reader.get_root::<strand_header::Reader>()?;
@@ -110,5 +109,37 @@ impl StrandHeader {
             offset: offset,
             stats: stats,
         })
+    }
+
+    pub fn write(&self, page: &mut Page) -> Result<()> {
+        let mut message = Builder::new_default();
+        let mut header = message.init_root::<strand_header::Builder>();
+
+        header.set_signature(serial_capnp::STRAND_MAGIC);
+        header.set_id(self.id);
+        header.set_capacity(self.capacity);
+
+        {
+            let mut stats = header.borrow().get_stats()?;
+            stats.set_read_bytes(self.stats.read_bytes);
+            stats.set_written_bytes(self.stats.written_bytes);
+            stats.set_valid_items(self.stats.valid_items);
+            stats.set_deleted_items(self.stats.deleted_items);
+        }
+
+        let mut page_writer = PageWriter::new(page);
+        serialize_packed::write_message(&mut page_writer, &message)?;
+
+        Ok(())
+    }
+
+    #[inline]
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    #[inline]
+    pub fn capacity(&self) -> u64 {
+        self.capacity
     }
 }
