@@ -102,8 +102,9 @@ impl<'a> Read for StrandReader<'a> {
 impl<'a> BufRead for StrandReader<'a> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         let page_id = self.get_page_id();
-        let off = self.cursor % PAGE_SIZE as usize;
         self.read_page(page_id)?;
+
+        let off = self.cursor % PAGE_SIZE as usize;
         Ok(&self.page[off..])
     }
 
