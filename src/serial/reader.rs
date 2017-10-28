@@ -40,17 +40,15 @@ pub struct StrandReader<'a> {
 
 impl<'a> StrandReader<'a> {
     pub fn new(strand: &'a Strand, ptr: FilePointer) -> Self {
+        assert!(strand.contains_ptr(ptr));
+
         StrandReader {
             strand: strand,
             page: Page::default(),
             page_id: None,
-            start: ptr.checked_sub(strand.start()).unwrap() as usize,
+            start: ptr - strand.start() as usize,
             cursor: 0,
         }
-    }
-
-    pub fn into_strand(self) -> &'a Strand {
-        self.strand
     }
 
     fn read_page(&mut self, page_id: u64) -> io::Result<()> {

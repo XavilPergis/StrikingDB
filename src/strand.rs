@@ -95,6 +95,11 @@ impl Strand {
         self.capacity
     }
 
+    #[inline]
+    pub fn contains_ptr(&self, ptr: FilePointer) -> bool {
+        self.start <= ptr && ptr <= self.start + self.capacity
+    }
+
     pub fn item(&self, ptr: FilePointer) -> () {
         // TODO replace () with actual item type
         unimplemented!();
