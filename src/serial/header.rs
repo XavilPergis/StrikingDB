@@ -77,7 +77,26 @@ impl VolumeHeader {
     }
 
     pub fn write(&self, page: &mut Page) -> Result<()> {
+        let mut message = Builder::new_default();
+        let mut header = message.init_root::<volume_header::Builder>();
 
+        header.set_signature(serial_capnp::VOLUME_MAGIC);
+        header.set_strands(self.strands);
+        header.set_state_ptr(self.state_ptr.unwrap_or(0));
+
+        {
+            let version = header.borrow().get_version()?;
+            let (major, minor, patch) = *VERSION;
+
+            version.set_major(major);
+            version.set_minor(minor);
+            version.set_patch(patch);
+        }
+
+        let mut page_writer = PageWriter::new(page);
+        serialize_packed::write_message(&mut page_writer, &message)?;
+
+        Ok(())
     }
 
     #[inline]
