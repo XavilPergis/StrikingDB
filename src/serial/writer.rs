@@ -19,6 +19,8 @@
  *
  */
 
-pub struct PageWriter;
+use std::cmp;
+use std::io::{self, Write};
+use super::page::Page;
+use super::PAGE_SIZE;
 
-pub struct StrandWriter;

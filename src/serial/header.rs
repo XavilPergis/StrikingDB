@@ -22,11 +22,11 @@
 use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
 use serial_capnp::{strand_header, volume_header};
+use std::io::{Read, Write};
 use super::page::Page;
 use super::serial_capnp;
 use super::strand::StrandStats;
-use super::{Error, FilePointer, PageReader, PageWriter, Result};
-use super::{PAGE_SIZE, VERSION};
+use super::{PAGE_SIZE, VERSION, Error, FilePointer, Result};
 
 #[derive(Debug, Clone)]
 pub struct VolumeHeader {
@@ -43,8 +43,8 @@ impl VolumeHeader {
     }
 
     pub fn read(page: &Page) -> Result<Self> {
-        let mut page_reader = PageReader::new(page);
-        let msg_reader = serialize_packed::read_message(&mut page_reader, ReaderOptions::new())?;
+        let mut slice = &page[..];
+        let msg_reader = serialize_packed::read_message(&mut slice, ReaderOptions::new())?;
         let header = msg_reader.get_root::<volume_header::Reader>()?;
 
         if header.get_signature() != serial_capnp::VOLUME_MAGIC {
@@ -93,8 +93,8 @@ impl VolumeHeader {
             version.set_patch(patch);
         }
 
-        let mut page_writer = PageWriter::new(page);
-        serialize_packed::write_message(&mut page_writer, &message)?;
+        let mut slice = &mut page[..];
+        serialize_packed::write_message(&mut slice, &message)?;
 
         Ok(())
     }
@@ -124,8 +124,8 @@ impl StrandHeader {
     }
 
     pub fn read(page: &Page) -> Result<Self> {
-        let mut page_reader = PageReader::new(page);
-        let msg_reader = serialize_packed::read_message(&mut page_reader, ReaderOptions::new())?;
+        let mut slice = &page[..];
+        let msg_reader = serialize_packed::read_message(&mut slice, ReaderOptions::new())?;
         let header = msg_reader.get_root::<strand_header::Reader>()?;
 
         if header.get_signature() != serial_capnp::STRAND_MAGIC {
@@ -170,8 +170,8 @@ impl StrandHeader {
             stats.set_deleted_items(self.stats.deleted_items);
         }
 
-        let mut page_writer = PageWriter::new(page);
-        serialize_packed::write_message(&mut page_writer, &message)?;
+        let mut slice = &mut page[..];
+        serialize_packed::write_message(&mut slice, &message)?;
 
         Ok(())
     }

@@ -21,12 +21,10 @@
 
 mod header;
 mod item;
-mod reader;
-mod writer;
+mod io;
 
 use super::*;
 
 pub use self::header::{StrandHeader, VolumeHeader};
 pub use self::item::{Item, ReadContext};
-pub use self::reader::{PageReader, StrandReader};
-pub use self::writer::{PageWriter, StrandWriter};
+pub use self::io::{StrandReader, StrandWriter};

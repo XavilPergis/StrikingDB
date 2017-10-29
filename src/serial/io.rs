@@ -1,5 +1,5 @@
 /*
- * serial/reader.rs
+ * serial/io.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -20,14 +20,12 @@
  */
 
 use std::cmp;
-use std::io::{self, BufRead, Cursor, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, Read, Seek, SeekFrom};
 use super::error::Error;
 use super::page::Page;
 use super::strand::Strand;
 use super::utils::align;
 use super::{PAGE_SIZE, FilePointer};
-
-pub type PageReader<'a> = Cursor<&'a Page>;
 
 #[derive(Debug, Clone)]
 pub struct StrandReader<'a> {
@@ -46,7 +44,7 @@ impl<'a> StrandReader<'a> {
             strand: strand,
             page: Page::default(),
             page_id: None,
-            start: ptr - strand.start() as usize,
+            start: (ptr - strand.start()) as usize,
             cursor: 0,
         }
     }
@@ -112,3 +110,6 @@ impl<'a> BufRead for StrandReader<'a> {
         self.cursor = cmp::min(self.cursor + amt, self.strand.capacity() as usize);
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct StrandWriter;
