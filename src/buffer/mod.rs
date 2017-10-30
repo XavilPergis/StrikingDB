@@ -1,5 +1,5 @@
 /*
- * page.rs
+ * buffer/mod.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,42 +19,10 @@
  *
  */
 
-use std::fmt;
-use std::ops::{Deref, DerefMut};
+mod block;
+mod page;
 
-pub const PAGE_SIZE: u64 = 4096;
+use super::{PAGE_SIZE, TRIM_SIZE};
 
-#[derive(Clone)]
-pub struct Page([u8; PAGE_SIZE as usize]);
-
-impl Default for Page {
-    fn default() -> Self {
-        Page([0; PAGE_SIZE as usize])
-    }
-}
-
-impl Deref for Page {
-    type Target = [u8];
-
-    fn deref(&self) -> &[u8] {
-        &self.0[..]
-    }
-}
-
-impl DerefMut for Page {
-    fn deref_mut(&mut self) -> &mut [u8] {
-        &mut self.0[..]
-    }
-}
-
-impl AsRef<[u8]> for Page {
-    fn as_ref(&self) -> &[u8] {
-        &self.0[..]
-    }
-}
-
-impl fmt::Debug for Page {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Page: {:?}..", &self.0[..16])
-    }
-}
+pub use self::block::Block;
+pub use self::page::Page;
