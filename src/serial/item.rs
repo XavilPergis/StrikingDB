@@ -22,6 +22,7 @@
 use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
 use std::cmp;
+use std::io::Write;
 use super::serial_capnp::item;
 use super::strand::Strand;
 use super::{FilePointer, Result, StrandReader, StrandWriter};
@@ -65,14 +66,13 @@ impl<'a> ReadContext<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, Clone)]
 pub struct Item;
 
 impl Item {
     pub fn read<F, R>(strand: &Strand, ptr: FilePointer, func: F) -> Result<R>
         where F: FnOnce(ReadContext) -> R
     {
-        // Set up readers
         let mut strand_reader = StrandReader::new(strand, ptr);
         let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;
         let item = msg_reader.get_root::<item::Reader>()?;
@@ -83,17 +83,18 @@ impl Item {
     }
 
     pub fn write(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePointer> {
-        // Set up builders
         let mut message = Builder::new_default();
-        let mut item = message.init_root::<item::Builder>();
-
-        // Set fields
-        item.set_key(key);
-        item.set_value(val);
+        {
+            let mut item = message.init_root::<item::Builder>();
+            item.set_key(key);
+            item.set_value(val);
+        }
 
         // Write data
         let mut strand_writer = StrandWriter::new(strand);
         serialize_packed::write_message(&mut strand_writer, &message)?;
+        strand_writer.write_metadata()?;
+        strand_writer.flush()?;
 
         Ok(strand_writer.get_pointer())
     }

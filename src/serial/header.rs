@@ -28,7 +28,7 @@ use super::serial_capnp;
 use super::strand::StrandStats;
 use super::{PAGE_SIZE, VERSION, Error, FilePointer, Result};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Hash, Clone)]
 pub struct VolumeHeader {
     strands: u32,
     pub state_ptr: Option<FilePointer>,
@@ -42,7 +42,7 @@ impl VolumeHeader {
         }
     }
 
-    pub fn read(page: &[u8; PAGE_SIZE as usize]) -> Result<Self> {
+    pub fn read(page: &Page) -> Result<Self> {
         let mut slice = &page[..];
         let msg_reader = serialize_packed::read_message(&mut slice, ReaderOptions::new())?;
         let header = msg_reader.get_root::<volume_header::Reader>()?;
@@ -78,19 +78,20 @@ impl VolumeHeader {
 
     pub fn write(&self, page: &mut Page) -> Result<()> {
         let mut message = Builder::new_default();
-        let mut header = message.init_root::<volume_header::Builder>();
-
-        header.set_signature(serial_capnp::VOLUME_MAGIC);
-        header.set_strands(self.strands);
-        header.set_state_ptr(self.state_ptr.unwrap_or(0));
-
         {
-            let version = header.borrow().get_version()?;
-            let (major, minor, patch) = *VERSION;
+            let mut header = message.init_root::<volume_header::Builder>();
+            header.set_signature(serial_capnp::VOLUME_MAGIC);
+            header.set_strands(self.strands);
+            header.set_state_ptr(self.state_ptr.unwrap_or(0));
 
-            version.set_major(major);
-            version.set_minor(minor);
-            version.set_patch(patch);
+            {
+                let mut version = header.borrow().get_version()?;
+                let (major, minor, patch) = *VERSION;
+
+                version.set_major(major);
+                version.set_minor(minor);
+                version.set_patch(patch);
+            }
         }
 
         let mut slice = &mut page[..];
@@ -105,7 +106,7 @@ impl VolumeHeader {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Hash, Clone)]
 pub struct StrandHeader {
     id: u32,
     capacity: u64,
@@ -141,6 +142,9 @@ impl StrandHeader {
             StrandStats {
                 read_bytes: stats.get_read_bytes(),
                 written_bytes: stats.get_written_bytes(),
+                trimmed_bytes: stats.get_trimmed_bytes(),
+                buffer_read_bytes: stats.get_buffer_read_bytes(),
+                buffer_written_bytes: stats.get_buffer_written_bytes(),
                 valid_items: stats.get_valid_items(),
                 deleted_items: stats.get_deleted_items(),
             }
@@ -156,18 +160,22 @@ impl StrandHeader {
 
     pub fn write(&self, page: &mut Page) -> Result<()> {
         let mut message = Builder::new_default();
-        let mut header = message.init_root::<strand_header::Builder>();
-
-        header.set_signature(serial_capnp::STRAND_MAGIC);
-        header.set_id(self.id);
-        header.set_capacity(self.capacity);
-
         {
-            let mut stats = header.borrow().get_stats()?;
-            stats.set_read_bytes(self.stats.read_bytes);
-            stats.set_written_bytes(self.stats.written_bytes);
-            stats.set_valid_items(self.stats.valid_items);
-            stats.set_deleted_items(self.stats.deleted_items);
+            let mut header = message.init_root::<strand_header::Builder>();
+            header.set_signature(serial_capnp::STRAND_MAGIC);
+            header.set_id(self.id);
+            header.set_capacity(self.capacity);
+
+            {
+                let mut stats = header.borrow().get_stats()?;
+                stats.set_read_bytes(self.stats.read_bytes);
+                stats.set_written_bytes(self.stats.written_bytes);
+                stats.set_trimmed_bytes(self.stats.trimmed_bytes);
+                stats.set_buffer_read_bytes(self.stats.buffer_read_bytes);
+                stats.set_buffer_written_bytes(self.stats.buffer_written_bytes);
+                stats.set_valid_items(self.stats.valid_items);
+                stats.set_deleted_items(self.stats.deleted_items);
+            }
         }
 
         let mut slice = &mut page[..];

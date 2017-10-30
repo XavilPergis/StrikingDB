@@ -23,6 +23,7 @@ use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
+use serial::Item;
 use std::fs::File;
 use super::{Result, MAX_KEY_LEN, MAX_VAL_LEN};
 use super::device::Device;
@@ -97,7 +98,11 @@ impl Store {
             return Err(Error::ItemExists);
         }
 
-        let ptr = self.volume.write().append(key, val)?;
+        let ptr = {
+            let strand = self.volume.write();
+            Item::write(&mut *strand, key, val)?
+        };
+
         self.index.put(key, ptr);
         Ok(())
     }

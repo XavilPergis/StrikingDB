@@ -26,7 +26,7 @@ use strand::Strand;
 use std::cmp::{self, Ordering};
 use std::time::Duration;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use super::{PAGE_SIZE, FilePointer, Result};
+use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl VolumeOpen {
     }
 
     fn read(dev: &Device, options: &OpenOptions) -> Result<Self> {
-        let mut buf = [0; PAGE_SIZE as usize];
+        let mut buf = [0; PAGE_SIZE];
         dev.read(0, &mut buf[..])?;
 
         // TODO read meta block
@@ -86,10 +86,10 @@ impl Volume {
         let mut strands = Vec::with_capacity(open.strand_count as usize);
         for i in 0..open.strand_count {
             // The first page is reserved for metadata
-            let off = i * size + PAGE_SIZE;
+            let off = i * size + PAGE_SIZE64;
             let len = cmp::min(size, left);
-            debug_assert_eq!(off % PAGE_SIZE, 0, "Strand offset is not page-aligned");
-            debug_assert_eq!(len % PAGE_SIZE, 0, "Strand length is not page-aligned");
+            debug_assert_eq!(off % PAGE_SIZE64, 0, "Strand offset is not page-aligned");
+            debug_assert_eq!(len % PAGE_SIZE64, 0, "Strand length is not page-aligned");
             debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
             left -= len;
@@ -111,7 +111,7 @@ impl Volume {
             let guard = strand.read();
             if ptr < guard.start() {
                 Ordering::Less
-            } else if ptr < guard.start() + guard.capacity() {
+            } else if ptr < guard.end() {
                 Ordering::Equal
             } else {
                 Ordering::Greater
@@ -120,7 +120,7 @@ impl Volume {
 
         match result {
             Ok(idx) => self.strands[idx].read(),
-            Err(_) => panic!("File pointer {:x} is not in any strand", ptr),
+            Err(_) => panic!("File pointer 0x{:x} is not in any strand", ptr),
         }
     }
 

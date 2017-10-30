@@ -84,11 +84,20 @@ struct StrandHeader {
         # The total number of bytes written to this strand
         writtenBytes @1 :UInt64;
 
+        # The total number of bytes trimmed in this strand
+        trimmedBytes @2 :UInt64;
+
+        # The number of bytes logically read from this strand
+        bufferReadBytes @3 :UInt64;
+
+        # The number of bytes logically written to this strand
+        bufferWrittenBytes @4 :UInt64;
+
         # The number of valid items in this strand
-        validItems @2 :UInt64;
+        validItems @5 :UInt64;
 
         # The number of deleted items in this strand awaiting GC
-        deletedItems @3 :UInt64;
+        deletedItems @6 :UInt64;
     }
 
     # How many bytes from the start to the free area of the strand

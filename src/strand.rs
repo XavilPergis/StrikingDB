@@ -20,13 +20,17 @@
  */
 
 use device::Device;
+use parking_lot::Mutex;
 use std::ops::Deref;
-use super::{PAGE_SIZE, FilePointer, Result};
+use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Hash, Clone, Default, PartialEq)]
 pub struct StrandStats {
     pub read_bytes: u64,
     pub written_bytes: u64,
+    pub trimmed_bytes: u64,
+    pub buffer_read_bytes: u64,
+    pub buffer_written_bytes: u64,
     pub valid_items: u64,
     pub deleted_items: u64,
 }
@@ -37,7 +41,7 @@ pub struct Strand {
     start: u64,
     capacity: u64,
     off: u64,
-    pub stats: StrandStats,
+    stats: Mutex<StrandStats>,
 }
 
 impl Strand {
@@ -49,12 +53,12 @@ impl Strand {
         read_strand: bool,
     ) -> Result<Self> {
         assert_eq!(
-            start % PAGE_SIZE,
+            start % PAGE_SIZE64,
             0,
             "Start is not a multiple of the page size"
         );
         assert_eq!(
-            capacity % PAGE_SIZE,
+            capacity % PAGE_SIZE64,
             0,
             "Capacity is not a multiple of the page size"
         );
@@ -62,10 +66,10 @@ impl Strand {
             start + capacity >= dev.capacity(),
             "Strand extends off the boundary of the device"
         );
-        assert!(capacity > PAGE_SIZE, "Strand only one page long");
+        assert!(capacity > PAGE_SIZE64, "Strand only one page long");
 
         let header = {
-            let mut buf = [0; PAGE_SIZE as usize];
+            let mut buf = [0; PAGE_SIZE];
             if read_strand {
                 dev.read(0, &mut buf[..])?;
             // TODO capnp proto read
@@ -80,9 +84,13 @@ impl Strand {
             start: start,
             capacity: capacity,
             // FIXME - off: header.offset,
-            off: 0,
+            off: PAGE_SIZE64,
             stats: StrandStats::default(),
         })
+    }
+
+    pub fn stats(&self) -> StrandStats {
+        self.stats.lock().clone()
     }
 
     #[inline]
@@ -91,8 +99,18 @@ impl Strand {
     }
 
     #[inline]
+    pub fn end(&self) -> u64 {
+        self.start + self.capacity
+    }
+
+    #[inline]
     pub fn capacity(&self) -> u64 {
         self.capacity
+    }
+
+    #[inline]
+    pub fn offset(&self) -> u64 {
+        self.off
     }
 
     #[inline]
@@ -100,19 +118,15 @@ impl Strand {
         self.start <= ptr && ptr <= self.start + self.capacity
     }
 
-    pub fn item(&self, ptr: FilePointer) -> () {
-        // TODO replace () with actual item type
-        unimplemented!();
-    }
-
-    pub fn append(&mut self, key: &[u8], value: &[u8]) -> Result<FilePointer> {
-        unimplemented!();
-    }
-
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         let len = buf.len() as u64;
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+
+        {
+            let stats = self.stats.lock();
+            stats.read_bytes += buf.len();
+        }
 
         let dev = unsafe { &*self.dev };
         dev.read(self.start + off, buf)
@@ -122,6 +136,11 @@ impl Strand {
         let len = buf.len() as u64;
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+
+        {
+            let stats = self.stats.lock();
+            stats.written_bytes += buf.len();
+        }
 
         let dev = unsafe { &*self.dev };
         dev.write(self.start + off, buf)

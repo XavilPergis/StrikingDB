@@ -26,12 +26,23 @@ use super::buffer::{Block, Page};
 use super::error::Error;
 use super::strand::Strand;
 use super::utils::align;
-use super::{PAGE_SIZE64, FilePointer};
+use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer};
 
+#[derive(Debug, Hash, Clone, Copy, PartialEq)]
 enum BufferStatus {
     Clean,
     Dirty,
     Empty,
+}
+
+fn to_io_error(err: Error) -> io::Error {
+    use Error::Io;
+
+    match err {
+        Io(Some(err)) => err,
+        Io(None) => io::Error::new(io::ErrorKind::Other, Io(None)),
+        _ => panic!("Non-I/O error recieved from strand I/O"),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -64,17 +75,7 @@ impl<'a> StrandReader<'a> {
                 self.status = BufferStatus::Clean;
                 Ok(())
             },
-            Err(e) => Self::to_io_error(e),
-        }
-    }
-
-    fn to_io_error(err: Error) -> io::Error {
-        use Error::Io;
-
-        match err {
-            Io(Some(err)) => err,
-            Io(None) => io::Error::new(io::ErrorKind::Other, Io(None)),
-            _ => panic!("Non-I/O error recieved from strand I/O"),
+            Err(e) => Err(to_io_error(e)),
         }
     }
 }
@@ -89,19 +90,19 @@ impl<'a> Read for StrandReader<'a> {
         let page_off = align(self.cursor);
         self.read_page(page_off)?;
 
-        let off = self.cursor - page_off;
-        let len = cmp::min(PAGE_SIZE64 - off, buf.len());
+        let off = (self.cursor - page_off) as usize;
+        let len = cmp::min(PAGE_SIZE - off, buf.len());
 
         let src = &self.page[off..off+len];
         let dest = &mut buf[..len];
         dest.copy_from_slice(src);
 
-        if off + len >= PAGE_SIZE64 {
-            debug_assert_eq!(page_off + 1, align(off + len));
+        if off + len >= PAGE_SIZE {
+            debug_assert_eq!(page_off + 1, align((off + len) as u64));
             self.status = BufferStatus::Empty;
         }
 
-        self.cursor += len;
+        self.cursor += len as u64;
         Ok(len)
     }
 }
@@ -111,13 +112,13 @@ impl<'a> BufRead for StrandReader<'a> {
         let page_off = align(self.cursor);
         self.read_page(page_off)?;
 
-        let off = self.cursor - page_off;
+        let off = (self.cursor - page_off) as usize;
         Ok(&self.page[off..])
     }
 
     fn consume(&mut self, amt: usize) {
-        let capacity = self.strand.capacity() as usize;
-        self.cursor = cmp::min(self.cursor + amt, capacity);
+        let amt = amt as u64;
+        self.cursor = cmp::min(self.cursor + amt, self.strand.capacity());
     }
 }
 
@@ -125,26 +126,28 @@ impl<'a> BufRead for StrandReader<'a> {
 pub struct StrandWriter<'a> {
     strand: &'a mut Strand,
     block: Block,
-    offset: u64,
-    cursor: usize,
+    status: BufferStatus,
+    cursor: u64,
 }
 
 impl<'a> StrandWriter<'a> {
-    pub fn new(strand: &'a mut Strand, ptr: FilePointer) -> Self {
-        // TODO
-        let page_id = ptr / PAGE_SIZE64;
-        let offset = ptr % PAGE_SIZE64;
+    pub fn new(strand: &'a mut Strand) -> Self {
+        let offset = strand.offset();
 
         StrandWriter {
             strand: strand,
-            page: Page::default(),
-            page_id: page_id,
-            cursor: offset as usize,
+            block: Block::default(),
+            status: BufferStatus::Empty,
+            cursor: offset,
         }
     }
 
     pub fn get_pointer(&self) -> FilePointer {
-        self.strand.begin() + self.page_id * PAGE_SIZE + cursor as u64
+        self.cursor + self.strand.start()
+    }
+
+    pub fn write_metadata(&mut self) -> io::Result<()> {
+        unimplemented!();
     }
 }
 
@@ -160,5 +163,11 @@ impl<'a> Write for StrandWriter<'a> {
 
     fn flush(&mut self) -> io::Result<()> {
         unimplemented!();
+    }
+}
+
+impl<'a> Drop for StrandWriter<'a> {
+    fn drop(&mut self) {
+        self.flush().expect("Flush during drop failed");
     }
 }

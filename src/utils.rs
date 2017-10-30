@@ -19,11 +19,11 @@
  *
  */
 
-use super::{PAGE_SIZE, TRIM_SIZE};
+use super::{PAGE_SIZE64, TRIM_SIZE64};
 
 #[inline]
 pub fn align(off: u64) -> u64 {
-    (off / PAGE_SIZE) * PAGE_SIZE
+    (off / PAGE_SIZE64) * PAGE_SIZE64
 }
 
 #[inline]
@@ -39,7 +39,7 @@ pub fn align_up(off: u64) -> u64 {
 
 #[inline]
 pub fn block_align(off: u64) -> u64 {
-    (off / TRIM_SIZE) * TRIM_SIZE
+    (off / TRIM_SIZE64) * TRIM_SIZE64
 }
 
 #[inline]
