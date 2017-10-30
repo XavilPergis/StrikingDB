@@ -51,20 +51,18 @@ mod serial_capnp {
 }
 
 /* Private fields */
+mod buffer;
 mod cache;
 mod deleted;
 mod device;
 mod error;
 mod index;
 mod options;
-mod page;
 mod serial;
 mod store;
 mod strand;
 mod utils;
 mod volume;
-
-use page::PAGE_SIZE;
 
 type FilePointer = u64;
 
@@ -77,6 +75,12 @@ pub use options::{OpenMode, OpenOptions};
 pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
 pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
 pub const VERSION_STR: &'static str = build::PKG_VERSION;
+
+const PAGE_SIZE: usize = 4 * 1024;
+const TRIM_SIZE: usize = 256 * 1024;
+
+const PAGE_SIZE64: u64 = PAGE_SIZE as u64;
+const TRIM_SIZE64: u64 = TRIM_SIZE as u64;
 
 lazy_static! {
     pub static ref VERSION: (u8, u8, u8) = {
