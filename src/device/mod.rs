@@ -29,4 +29,4 @@ cfg_if! {
     }
 }
 
-use super::{PAGE_SIZE, Error, Result};
+use super::*;

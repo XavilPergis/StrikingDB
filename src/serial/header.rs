@@ -23,7 +23,7 @@ use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
 use serial_capnp::{strand_header, volume_header};
 use std::io::{Read, Write};
-use super::page::Page;
+use super::buffer::Page;
 use super::serial_capnp;
 use super::strand::StrandStats;
 use super::{PAGE_SIZE, VERSION, Error, FilePointer, Result};
@@ -42,7 +42,7 @@ impl VolumeHeader {
         }
     }
 
-    pub fn read(page: &Page) -> Result<Self> {
+    pub fn read(page: &[u8; PAGE_SIZE as usize]) -> Result<Self> {
         let mut slice = &page[..];
         let msg_reader = serialize_packed::read_message(&mut slice, ReaderOptions::new())?;
         let header = msg_reader.get_root::<volume_header::Reader>()?;

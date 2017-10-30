@@ -37,7 +37,7 @@ pub struct Strand {
     start: u64,
     capacity: u64,
     off: u64,
-    stats: StrandStats,
+    pub stats: StrandStats,
 }
 
 impl Strand {
@@ -79,7 +79,7 @@ impl Strand {
             dev: dev,
             start: start,
             capacity: capacity,
-            // FIXME off: header.offset,
+            // FIXME - off: header.offset,
             off: 0,
             stats: StrandStats::default(),
         })
