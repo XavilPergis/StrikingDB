@@ -45,7 +45,7 @@ struct VolumeHeader {
     }
 
     # The number of strands in this volume
-    strands @2 :UInt32;
+    strands @2 :UInt16;
 
     # A pointer to where the "datastore state" is
     # stored, a serialized form of the indexer and
@@ -63,7 +63,7 @@ struct VolumeHeader {
 # the datastore are stored.
 struct StrandHeader {
     signature @0 :Magic;
-    id @1 :UInt32;
+    id @1 :UInt16;
 
     # How large this strand is.
     # While this value could be calculated from

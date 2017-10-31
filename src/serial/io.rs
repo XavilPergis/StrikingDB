@@ -21,9 +21,9 @@
 
 use std::cmp;
 use std::io::{self, BufRead, Read, Write};
-
 use super::buffer::{Block, Page};
 use super::error::Error;
+use super::header::StrandHeader;
 use super::strand::Strand;
 use super::utils::align;
 use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer};
@@ -147,7 +147,11 @@ impl<'a> StrandWriter<'a> {
     }
 
     pub fn write_metadata(&mut self) -> io::Result<()> {
-        unimplemented!();
+        let header = StrandHeader::from(self.strand);
+        let mut page = Page::default();
+        header.write(&mut page).map_err(to_io_error)?;
+        self.strand.write(0, &page).map_err(to_io_error)?;
+        Ok(())
     }
 }
 

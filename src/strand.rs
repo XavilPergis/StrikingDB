@@ -38,6 +38,7 @@ pub struct StrandStats {
 #[derive(Debug)]
 pub struct Strand {
     dev: *const Device,
+    id: u16,
     start: u64,
     capacity: u64,
     off: u64,
@@ -47,7 +48,7 @@ pub struct Strand {
 impl Strand {
     pub fn new(
         dev: &Device,
-        strand: u64,
+        id: u16,
         start: u64,
         capacity: u64,
         read_strand: bool,
@@ -81,6 +82,7 @@ impl Strand {
 
         Ok(Strand {
             dev: dev,
+            id: id,
             start: start,
             capacity: capacity,
             // FIXME - off: header.offset,
@@ -91,6 +93,11 @@ impl Strand {
 
     pub fn stats(&self) -> StrandStats {
         self.stats.lock().clone()
+    }
+
+    #[inline]
+    pub fn id(&self) -> u16 {
+        self.id
     }
 
     #[inline]

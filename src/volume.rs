@@ -22,16 +22,17 @@
 use device::Device;
 use num_cpus;
 use options::{OpenMode, OpenOptions};
-use strand::Strand;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::cmp::{self, Ordering};
 use std::time::Duration;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::u16;
+use strand::Strand;
 use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
 struct VolumeOpen {
-    strand_count: u64,
+    strand_count: u16,
     read_strand: bool,
 }
 
@@ -47,9 +48,10 @@ impl VolumeOpen {
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
+        assert!(count <= u16::MAX as u64, "Integer not large enough for all these strands");
 
         VolumeOpen {
-            strand_count: count,
+            strand_count: count as u16,
             read_strand: false,
         }
     }
@@ -81,12 +83,12 @@ impl Volume {
         }
 
         let mut left = dev.capacity();
-        let size = align(dev.capacity() / open.strand_count);
+        let size = align(dev.capacity() / open.strand_count as u64);
 
         let mut strands = Vec::with_capacity(open.strand_count as usize);
         for i in 0..open.strand_count {
             // The first page is reserved for metadata
-            let off = i * size + PAGE_SIZE64;
+            let off = (i as u64) * size + PAGE_SIZE64;
             let len = cmp::min(size, left);
             debug_assert_eq!(off % PAGE_SIZE64, 0, "Strand offset is not page-aligned");
             debug_assert_eq!(len % PAGE_SIZE64, 0, "Strand length is not page-aligned");

@@ -25,17 +25,17 @@ use serial_capnp::{strand_header, volume_header};
 use std::io::{Read, Write};
 use super::buffer::Page;
 use super::serial_capnp;
-use super::strand::StrandStats;
-use super::{PAGE_SIZE, VERSION, Error, FilePointer, Result};
+use super::strand::{Strand, StrandStats};
+use super::{PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
 
 #[derive(Debug, Hash, Clone)]
 pub struct VolumeHeader {
-    strands: u32,
+    strands: u16,
     pub state_ptr: Option<FilePointer>,
 }
 
 impl VolumeHeader {
-    pub fn new(strands: u32) -> Self {
+    pub fn new(strands: u16) -> Self {
         VolumeHeader {
             strands: strands,
             state_ptr: None,
@@ -101,26 +101,35 @@ impl VolumeHeader {
     }
 
     #[inline]
-    pub fn strands(&self) -> u32 {
+    pub fn strands(&self) -> u16 {
         self.strands
     }
 }
 
 #[derive(Debug, Hash, Clone)]
 pub struct StrandHeader {
-    id: u32,
+    id: u16,
     capacity: u64,
     pub offset: u64,
     pub stats: StrandStats,
 }
 
 impl StrandHeader {
-    pub fn new(id: u32, capacity: u64) -> Self {
+    pub fn new(id: u16, capacity: u64) -> Self {
         StrandHeader {
             id: id,
             capacity: capacity,
-            offset: 0,
+            offset: PAGE_SIZE64,
             stats: StrandStats::default(),
+        }
+    }
+
+    pub fn from(strand: &Strand) -> Self {
+        StrandHeader {
+            id: strand.id(),
+            capacity: strand.capacity(),
+            offset: strand.offset(),
+            stats: strand.stats(),
         }
     }
 
@@ -185,7 +194,7 @@ impl StrandHeader {
     }
 
     #[inline]
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> u16 {
         self.id
     }
 
