@@ -85,7 +85,7 @@ impl Strand {
             capacity: capacity,
             // FIXME - off: header.offset,
             off: PAGE_SIZE64,
-            stats: StrandStats::default(),
+            stats: Mutex::new(StrandStats::default()),
         })
     }
 
@@ -124,8 +124,8 @@ impl Strand {
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
         {
-            let stats = self.stats.lock();
-            stats.read_bytes += buf.len();
+            let mut stats = self.stats.lock();
+            stats.read_bytes += buf.len() as u64;
         }
 
         let dev = unsafe { &*self.dev };
@@ -138,8 +138,8 @@ impl Strand {
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
         {
-            let stats = self.stats.lock();
-            stats.written_bytes += buf.len();
+            let mut stats = self.stats.lock();
+            stats.written_bytes += buf.len() as u64;
         }
 
         let dev = unsafe { &*self.dev };

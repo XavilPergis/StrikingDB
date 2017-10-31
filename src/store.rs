@@ -25,10 +25,11 @@ use index::Index;
 use options::OpenOptions;
 use serial::Item;
 use std::fs::File;
-use super::{Result, MAX_KEY_LEN, MAX_VAL_LEN};
+use strand::Strand;
 use super::device::Device;
 use super::error::Error;
 use super::volume::Volume;
+use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
 #[derive(Debug)]
 pub struct Store {
@@ -79,14 +80,14 @@ impl Store {
             return Ok(len);
         }
 
-        let ptr = match self.index.get(key) {
-            Some(ptr) => ptr,
-            None => return Err(Error::ItemNotFound),
-        };
+        let entry = self.index.lock(key);
+        if !entry.exists() {
+            return Err(Error::ItemNotFound);
+        }
 
-        unimplemented!();
-        // let item = self.volume.read(ptr).item(ptr);
-        // Ok(item.value(val))
+        let ptr = entry.value.unwrap();
+        let strand = self.volume.read(ptr);
+        self.lookup_item(&*strand, ptr, val)
     }
 
     // Update
@@ -94,13 +95,13 @@ impl Store {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        let entry = self.index.lock(key);
+        let mut entry = self.index.lock(key);
         if entry.exists() {
             return Err(Error::ItemExists);
         }
 
         let ptr = {
-            let strand = self.volume.write();
+            let mut strand = self.volume.write();
             Item::write(&mut *strand, key, val)?
         };
 
@@ -112,17 +113,18 @@ impl Store {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        if !self.index.key_exists(key) {
+        let mut entry = self.index.lock(key);
+        if !entry.exists() {
             return Err(Error::ItemNotFound);
         }
 
-        self.remove_item(key)?;
         let ptr = {
-            let strand = self.volume.write();
+            let mut strand = self.volume.write();
             Item::write(&mut *strand, key, val)?
         };
 
-        self.index.put(key, ptr);
+        self.remove_item(key, entry.value.unwrap());
+        entry.value = Some(ptr);
         Ok(())
     }
 
@@ -130,12 +132,18 @@ impl Store {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        if self.index.key_exists(key) {
-            self.remove_item(key)?;
+        let mut entry = self.index.lock(key);
+
+        let ptr = {
+            let mut strand = self.volume.write();
+            Item::write(&mut *strand, key, val)?
+        };
+
+        if entry.exists() {
+            self.remove_item(key, entry.value.unwrap());
         }
 
-        let ptr = self.volume.write().append(key, val)?;
-        self.index.put(key, ptr);
+        entry.value = Some(ptr);
         Ok(())
     }
 
@@ -143,42 +151,41 @@ impl Store {
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
-        if !self.index.key_exists(key) {
+        let entry = self.index.lock(key);
+        if !entry.exists() {
             return Err(Error::ItemNotFound);
         }
 
-        let ptr = match self.index.get(key) {
-            Some(ptr) => ptr,
-            None => return Err(Error::ItemNotFound),
-        };
+        let ptr = entry.value.unwrap();
+        self.remove_item(key, ptr);
 
-        unimplemented!();
-        // let item = self.volume.read(ptr).item(ptr);
-        // let bytes_witten = item.value(val);
+        if let Some(len) = self.cache.get(key, val) {
+            return Ok(len);
+        }
 
-        // self.remove_item(key)?;
-
-        // Ok(bytes_witten)
+        let strand = self.volume.read(ptr);
+        self.lookup_item(&*strand, ptr, val)
     }
 
     pub fn remove(&self, key: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
 
-        match self.remove_item(key) {
-            Ok(()) | Err(Error::ItemNotFound) => Ok(()),
-            Err(e) => Err(e),
+        let entry = self.index.lock(key);
+        if let Some(ptr) = entry.value {
+            self.remove_item(key, ptr);
         }
+
+        Ok(())
     }
 
-    fn remove_item(&self, key: &[u8]) -> Result<()> {
-        let ptr = match self.index.get(key) {
-            Some(ptr) => ptr,
-            None => return Err(Error::ItemNotFound),
-        };
+    // Helpers
+    fn lookup_item(&self, strand: &Strand, ptr: FilePointer, val: &mut [u8]) -> Result<usize> {
+        Item::read(strand, ptr, |ctx| ctx.copy_val(val))
+    }
 
-        self.deleted.put(ptr);
-        self.index.remove(key);
-        Ok(())
+    fn remove_item(&self, key: &[u8], ptr: FilePointer) {
+        self.cache.remove(key);
+        self.deleted.add(ptr);
     }
 
     // Stats

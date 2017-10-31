@@ -31,7 +31,7 @@ impl Deleted {
         Deleted(RwLock::new(BTreeSet::new()))
     }
 
-    pub fn put(&self, value: FilePointer) {
+    pub fn add(&self, value: FilePointer) {
         let exists = self.0.write().insert(value);
         assert!(!exists, "Deleted item already tracked");
     }

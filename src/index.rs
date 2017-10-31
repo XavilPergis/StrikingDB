@@ -61,21 +61,24 @@ impl<'i, 'k> IndexEntryGuard<'i, 'k> {
 impl<'i, 'k> Drop for IndexEntryGuard<'i, 'k> {
     fn drop(&mut self) {
         let index = unsafe { &*self.index };
-        let map = index.write();
+        let mut map = index.write();
 
-        match guard.entry(self.key) {
-            Vacant(_) => panic!("Locked entry was vacant"),
-            Occupied(entry) => {
-                match self.value {
-                    Some(ptr) => entry.insert(ptr, false),
-                    None => entry.remove(),
-                }
+        {
+            let mut tuple = map.get_mut(self.key).expect("Locked entry is now empty");
+            let (ref mut ptr, ref mut locked) = *tuple;
+
+            if let Some(new_ptr) = self.value {
+                *ptr = new_ptr;
+                *locked = false;
+                return;
             }
         }
+
+        map.remove(self.key);
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Index(RwLock<IndexTree>);
 
 impl Index {
@@ -94,27 +97,33 @@ impl Index {
     }
 
     pub fn try_lock<'i, 'k>(&'i self, key: &'k [u8]) -> Option<IndexEntryGuard<'i, 'k>> {
-        use std::collections::btree_map::Entry::{Occupied, Vacant};
+        let mut map = self.0.write();
+        let mut value = None;
 
-        let map = self.0.write();
-        let value;
+        // We use this stupid pattern instead of a
+        // match because we need to .insert() in the
+        // None case, but the borrow checker thinks
+        // we already have a mutable reference to
+        // "map" because of get_mut().
+        if let Some(mut tuple) = map.get_mut(key) {
+            let (ptr, ref mut locked) = *tuple;
+            if *locked {
+                return None;
+            }
 
-        match map.entry(key) {
-            Vacant(ref entry) => {
-                entry.insert((0, true));
-                value = None;
-            },
-            Occupied(ref entry) => {
-                let (ptr, locked) = entry.get();
-                if locked {
-                    return None;
-                }
+            *locked = true;
+            value = Some(ptr);
+        }
 
-                entry.get_mut().1 = true;
-                value = Some(ptr);
-            },
+        if value.is_none() {
+            let key_box = Vec::from(key).into_boxed_slice();
+            map.insert(key_box, (0, true));
         }
 
         Some(IndexEntryGuard::new(&self.0, key.clone(), value))
+    }
+
+    pub fn count(&self) -> usize {
+        self.0.read().len()
     }
 }
