@@ -94,7 +94,8 @@ impl Store {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        if self.index.key_exists(key) {
+        let entry = self.index.lock(key);
+        if entry.exists() {
             return Err(Error::ItemExists);
         }
 
@@ -103,7 +104,7 @@ impl Store {
             Item::write(&mut *strand, key, val)?
         };
 
-        self.index.put(key, ptr);
+        entry.value = Some(ptr);
         Ok(())
     }
 
@@ -116,7 +117,11 @@ impl Store {
         }
 
         self.remove_item(key)?;
-        let ptr = self.volume.write().append(key, val)?;
+        let ptr = {
+            let strand = self.volume.write();
+            Item::write(&mut *strand, key, val)?
+        };
+
         self.index.put(key, ptr);
         Ok(())
     }
