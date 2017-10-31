@@ -121,6 +121,11 @@ impl Strand {
     }
 
     #[inline]
+    pub fn remaining(&self) -> u64 {
+        self.capacity - self.off
+    }
+
+    #[inline]
     pub fn contains_ptr(&self, ptr: FilePointer) -> bool {
         self.start <= ptr && ptr <= self.start + self.capacity
     }

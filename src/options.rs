@@ -19,14 +19,14 @@
  *
  */
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OpenMode {
     Open,
     Create,
     Truncate,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OpenOptions {
     pub strands: Option<u32>,
     pub read_cache: Option<usize>,

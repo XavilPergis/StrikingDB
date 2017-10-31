@@ -158,14 +158,21 @@ impl<'a> StrandWriter<'a> {
 // check remaining space
 // update strand offset
 // update strand stats (incl bytes)
-// write strand header
 
 impl<'a> Write for StrandWriter<'a> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if buf.len() > self.strand.remaining() as usize {
+            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Out of disk space"));
+        }
+
         unimplemented!();
     }
 
     fn flush(&mut self) -> io::Result<()> {
+        if self.status != BufferStatus::Dirty {
+            return Ok(());
+        }
+
         unimplemented!();
     }
 }
