@@ -25,10 +25,10 @@ use super::buffer::{Block, Page};
 use super::error::Error;
 use super::header::StrandHeader;
 use super::strand::Strand;
-use super::utils::align;
-use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer};
+use super::utils::{align, block_align};
+use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, TRIM_SIZE64, FilePointer};
 
-#[derive(Debug, Hash, Clone, Copy, PartialEq)]
+#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
 enum BufferStatus {
     Clean,
     Dirty,
@@ -87,31 +87,43 @@ impl<'a> Read for StrandReader<'a> {
     // In the future we could optimize
     // this for long reads that span several pages.
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        // Update buffer
         let page_off = align(self.cursor);
         self.read_page(page_off)?;
 
+        // Determine how many bytes to read
         let off = (self.cursor - page_off) as usize;
         let len = cmp::min(PAGE_SIZE - off, buf.len());
 
+        // Copy data
         let src = &self.page[off..off+len];
         let dest = &mut buf[..len];
         dest.copy_from_slice(src);
 
-        if off + len >= PAGE_SIZE {
-            debug_assert_eq!(page_off + 1, align((off + len) as u64));
-            self.status = BufferStatus::Empty;
+        // Update metadata
+        {
+            let len = len as u64;
+            self.cursor += len;
+
+            self.strand.stats.lock().buffer_read_bytes += len;
+            let new_off = off as u64 + len;
+            if new_off >= PAGE_SIZE64 {
+                debug_assert_eq!(page_off + 1, align(new_off));
+                self.status = BufferStatus::Empty;
+            }
         }
 
-        self.cursor += len as u64;
         Ok(len)
     }
 }
 
 impl<'a> BufRead for StrandReader<'a> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        // Update buffer
         let page_off = align(self.cursor);
         self.read_page(page_off)?;
 
+        // Return slice
         let off = (self.cursor - page_off) as usize;
         Ok(&self.page[off..])
     }
@@ -155,7 +167,6 @@ impl<'a> StrandWriter<'a> {
     }
 }
 
-// check remaining space
 // update strand offset
 // update strand stats (incl bytes)
 
@@ -165,7 +176,41 @@ impl<'a> Write for StrandWriter<'a> {
             return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Out of disk space"));
         }
 
-        unimplemented!();
+        let block_off = block_align(self.cursor);
+
+        // Update buffer if needed
+        if self.status == BufferStatus::Empty {
+            self.strand.read(block_off, &mut self.block).map_err(to_io_error)?;
+            self.status = BufferStatus::Clean;
+        }
+
+        // Determine how many bytes to write
+        let off = self.cursor as usize % TRIM_SIZE;
+        let len = cmp::min(TRIM_SIZE - off, buf.len());
+
+        // Copy data
+        {
+            let src = &buf[..len];
+            let dest = &mut self.block[off..off+len];
+            dest.copy_from_slice(src);
+        }
+
+        // Update metadata
+        {
+            let len = len as u64;
+            self.status = BufferStatus::Dirty;
+            self.cursor += len;
+            self.strand.offset += len;
+            self.strand.stats.get_mut().buffer_written_bytes += len;
+        }
+
+        // Flush if necessary
+        if off + len >= TRIM_SIZE {
+            self.strand.write(block_off, &self.block).map_err(to_io_error)?;
+            self.status = BufferStatus::Clean;
+        }
+
+        Ok(len)
     }
 
     fn flush(&mut self) -> io::Result<()> {

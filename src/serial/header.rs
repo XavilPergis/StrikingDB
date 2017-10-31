@@ -129,7 +129,7 @@ impl StrandHeader {
             id: strand.id(),
             capacity: strand.capacity(),
             offset: strand.offset(),
-            stats: strand.stats(),
+            stats: strand.stats.lock().clone(),
         }
     }
 

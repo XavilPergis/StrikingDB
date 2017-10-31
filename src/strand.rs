@@ -41,8 +41,8 @@ pub struct Strand {
     id: u16,
     start: u64,
     capacity: u64,
-    off: u64,
-    stats: Mutex<StrandStats>,
+    pub offset: u64,
+    pub stats: Mutex<StrandStats>,
 }
 
 impl Strand {
@@ -86,13 +86,9 @@ impl Strand {
             start: start,
             capacity: capacity,
             // FIXME - off: header.offset,
-            off: PAGE_SIZE64,
+            offset: PAGE_SIZE64,
             stats: Mutex::new(StrandStats::default()),
         })
-    }
-
-    pub fn stats(&self) -> StrandStats {
-        self.stats.lock().clone()
     }
 
     #[inline]
@@ -116,13 +112,18 @@ impl Strand {
     }
 
     #[inline]
-    pub fn offset(&self) -> u64 {
-        self.off
+    pub fn remaining(&self) -> u64 {
+        self.capacity - self.offset
     }
 
     #[inline]
-    pub fn remaining(&self) -> u64 {
-        self.capacity - self.off
+    pub fn offset(&self) -> u64 {
+        self.offset
+    }
+
+    #[inline]
+    pub fn offset_mut(&mut self) -> &mut u64 {
+        &mut self.offset
     }
 
     #[inline]
@@ -161,6 +162,11 @@ impl Strand {
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+
+        {
+            let mut stats = self.stats.lock();
+            stats.trimmed_bytes += len;
+        }
 
         let dev = unsafe { &*self.dev };
         dev.trim(self.start + off, len)
