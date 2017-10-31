@@ -197,3 +197,6 @@ impl Store {
         self.deleted.count()
     }
 }
+
+unsafe impl Send for Store {}
+unsafe impl Sync for Store {}
