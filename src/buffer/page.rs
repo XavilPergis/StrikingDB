@@ -20,17 +20,12 @@
  */
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use super::PAGE_SIZE;
 
 #[derive(Clone)]
 pub struct Page([u8; PAGE_SIZE]);
-
-impl Default for Page {
-    fn default() -> Self {
-        Page([0; PAGE_SIZE])
-    }
-}
 
 impl Deref for Page {
     type Target = [u8];
@@ -49,6 +44,18 @@ impl DerefMut for Page {
 impl AsRef<[u8]> for Page {
     fn as_ref(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl Default for Page {
+    fn default() -> Self {
+        Page([0; PAGE_SIZE])
+    }
+}
+
+impl Hash for Page {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.0[..]);
     }
 }
 

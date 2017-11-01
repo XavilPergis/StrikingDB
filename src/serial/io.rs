@@ -218,6 +218,7 @@ impl<'a> Write for StrandWriter<'a> {
             return Ok(());
         }
 
+        // Write current block
         let off = block_align(self.cursor);
         self.strand.write(off, &self.block).map_err(to_io_error)?;
         self.status = BufferStatus::Clean;

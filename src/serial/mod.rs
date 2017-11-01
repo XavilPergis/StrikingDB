@@ -19,6 +19,7 @@
  *
  */
 
+mod alloc;
 mod header;
 mod item;
 mod io;
