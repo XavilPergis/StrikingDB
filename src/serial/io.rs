@@ -46,15 +46,15 @@ fn to_io_error(err: Error) -> io::Error {
 }
 
 #[derive(Debug, Clone)]
-pub struct StrandReader<'a> {
-    strand: &'a Strand,
+pub struct StrandReader<'s, 'd: 's> {
+    strand: &'s Strand<'d>,
     page: Page,
     status: BufferStatus,
     cursor: u64,
 }
 
-impl<'a> StrandReader<'a> {
-    pub fn new(strand: &'a Strand, ptr: FilePointer) -> Self {
+impl<'s, 'd> StrandReader<'s, 'd> {
+    pub fn new(strand: &'s Strand<'d>, ptr: FilePointer) -> Self {
         assert!(strand.contains_ptr(ptr), "Pointer isn't in the bounds of this strand");
 
         StrandReader {
@@ -80,7 +80,7 @@ impl<'a> StrandReader<'a> {
     }
 }
 
-impl<'a> Read for StrandReader<'a> {
+impl<'s, 'd> Read for StrandReader<'s, 'd> {
     // To avoid complex multi-page reads, only
     // read until the end of the current page
     //
@@ -117,7 +117,7 @@ impl<'a> Read for StrandReader<'a> {
     }
 }
 
-impl<'a> BufRead for StrandReader<'a> {
+impl<'s, 'd> BufRead for StrandReader<'s, 'd> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         // Update buffer
         let page_off = align(self.cursor);
@@ -135,15 +135,15 @@ impl<'a> BufRead for StrandReader<'a> {
 }
 
 #[derive(Debug)]
-pub struct StrandWriter<'a> {
-    strand: &'a mut Strand,
+pub struct StrandWriter<'s, 'd: 's> {
+    strand: &'s mut Strand<'d>,
     block: Block,
     status: BufferStatus,
     cursor: u64,
 }
 
-impl<'a> StrandWriter<'a> {
-    pub fn new(strand: &'a mut Strand) -> Self {
+impl<'s, 'd> StrandWriter<'s, 'd> {
+    pub fn new(strand: &'s mut Strand<'d>) -> Self {
         let offset = strand.offset();
 
         StrandWriter {
@@ -167,10 +167,7 @@ impl<'a> StrandWriter<'a> {
     }
 }
 
-// update strand offset
-// update strand stats (incl bytes)
-
-impl<'a> Write for StrandWriter<'a> {
+impl<'s, 'd> Write for StrandWriter<'s, 'd> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if buf.len() > self.strand.remaining() as usize {
             return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Out of disk space"));
@@ -227,7 +224,7 @@ impl<'a> Write for StrandWriter<'a> {
     }
 }
 
-impl<'a> Drop for StrandWriter<'a> {
+impl<'s, 'd> Drop for StrandWriter<'s, 'd> {
     fn drop(&mut self) {
         self.flush().expect("Flush during drop failed");
     }

@@ -86,8 +86,9 @@ impl Store {
         }
 
         let ptr = entry.value.unwrap();
-        let strand = self.volume.read(ptr);
-        self.lookup_item(&*strand, ptr, val)
+        self.volume.read(ptr, |strand| {
+            self.lookup_item(strand, ptr, val)
+        })
     }
 
     // Update
@@ -100,10 +101,9 @@ impl Store {
             return Err(Error::ItemExists);
         }
 
-        let ptr = {
-            let mut strand = self.volume.write();
-            Item::write(&mut *strand, key, val)?
-        };
+        let ptr = self.volume.write(|strand| {
+            Item::write(strand, key, val)
+        })?;
 
         entry.value = Some(ptr);
         Ok(())
@@ -118,12 +118,12 @@ impl Store {
             return Err(Error::ItemNotFound);
         }
 
-        let ptr = {
-            let mut strand = self.volume.write();
-            Item::write(&mut *strand, key, val)?
-        };
+        let old_ptr = entry.value.unwrap();
+        let ptr = self.volume.write(|strand| {
+            Item::write(strand, key, val)
+        })?;
 
-        self.remove_item(key, entry.value.unwrap());
+        self.remove_item(key, old_ptr);
         entry.value = Some(ptr);
         Ok(())
     }
@@ -134,13 +134,13 @@ impl Store {
 
         let mut entry = self.index.lock(key);
 
-        let ptr = {
-            let mut strand = self.volume.write();
-            Item::write(&mut *strand, key, val)?
-        };
+        let old_ptr = entry.value.unwrap();
+        let ptr = self.volume.write(|strand| {
+            Item::write(strand, key, val)
+        })?;
 
         if entry.exists() {
-            self.remove_item(key, entry.value.unwrap());
+            self.remove_item(key, old_ptr);
         }
 
         entry.value = Some(ptr);
@@ -163,8 +163,9 @@ impl Store {
             return Ok(len);
         }
 
-        let strand = self.volume.read(ptr);
-        self.lookup_item(&*strand, ptr, val)
+        self.volume.read(ptr, |strand| {
+            self.lookup_item(strand, ptr, val)
+        })
     }
 
     pub fn remove(&self, key: &[u8]) -> Result<()> {

@@ -36,8 +36,8 @@ pub struct StrandStats {
 }
 
 #[derive(Debug)]
-pub struct Strand {
-    dev: *const Device,
+pub struct Strand<'d> {
+    dev: &'d Device,
     id: u16,
     start: u64,
     capacity: u64,
@@ -45,9 +45,9 @@ pub struct Strand {
     pub stats: Mutex<StrandStats>,
 }
 
-impl Strand {
+impl<'d> Strand<'d> {
     pub fn new(
-        dev: &Device,
+        dev: &'d Device,
         id: u16,
         start: u64,
         capacity: u64,
