@@ -33,19 +33,16 @@ const strandMagic :Magic = 0x1a456bf69dbf40c8;
 # from disk.
 struct VolumeHeader {
     signature @0 :Magic;
-    version @1 :Version;
 
     # Represents the version of StrikingDB
     # If this value is incompatible on disk,
     # an error will occur on open
-    struct Version {
-        major @0 :UInt8;
-        minor @1 :UInt8;
-        patch @2 :UInt8;
-    }
+    versionMajor @1 :UInt8;
+    versionMinor @2 :UInt8;
+    versionPatch @3 :UInt8;
 
     # The number of strands in this volume
-    strands @2 :UInt16;
+    strands @4 :UInt16;
 
     # A pointer to where the "datastore state" is
     # stored, a serialized form of the indexer and
@@ -54,7 +51,7 @@ struct VolumeHeader {
     #
     # If this value is 0 (i.e. null) then the indexer
     # and deleted item tree will be recreated from disk.
-    statePtr @3 :DiskPointer;
+    statePtr @5 :DiskPointer;
 }
 
 # The header present on the first page of every
@@ -73,36 +70,33 @@ struct StrandHeader {
     # overrun a strand's bounds.
     capacity @2 :UInt64;
 
-    # Stores various statistics and other numbers of
-    # interest about this strand
-    stats @3 :Stats;
-
-    struct Stats {
-        # The total number of bytes read from this strand
-        readBytes @0 :UInt64;
-
-        # The total number of bytes written to this strand
-        writtenBytes @1 :UInt64;
-
-        # The total number of bytes trimmed in this strand
-        trimmedBytes @2 :UInt64;
-
-        # The number of bytes logically read from this strand
-        bufferReadBytes @3 :UInt64;
-
-        # The number of bytes logically written to this strand
-        bufferWrittenBytes @4 :UInt64;
-
-        # The number of valid items in this strand
-        validItems @5 :UInt64;
-
-        # The number of deleted items in this strand awaiting GC
-        deletedItems @6 :UInt64;
-    }
-
     # How many bytes from the start to the free area of the strand
     # Must be updated on every write
-    offset @4 :UInt64;
+    offset @3 :UInt64;
+
+    # Stores various statistics and other numbers of
+    # interest about this strand
+
+    # The total number of bytes read from this strand
+    statsReadBytes @4 :UInt64;
+
+    # The total number of bytes written to this strand
+    statsWrittenBytes @5 :UInt64;
+
+    # The total number of bytes trimmed in this strand
+    statsTrimmedBytes @6 :UInt64;
+
+    # The number of bytes logically read from this strand
+    statsBufferReadBytes @7 :UInt64;
+
+    # The number of bytes logically written to this strand
+    statsBufferWrittenBytes @8 :UInt64;
+
+    # The number of valid items in this strand
+    statsValidItems @9 :UInt64;
+
+    # The number of deleted items in this strand awaiting GC
+    statsDeletedItems @10 :UInt64;
 }
 
 # Represents a single item on a strand

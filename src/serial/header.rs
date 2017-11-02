@@ -23,23 +23,55 @@ use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
 use serial_capnp::{strand_header, volume_header};
 use std::io::{Read, Write};
+use super::alloc::PageAllocator;
 use super::buffer::Page;
+use super::fake_box::FakeBox;
 use super::serial_capnp;
 use super::strand::{Strand, StrandStats};
 use super::{PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
 
-#[derive(Debug, Hash, Clone)]
-pub struct VolumeHeader {
-    strands: u16,
-    pub state_ptr: Option<FilePointer>,
+rental! {
+    mod rentals {
+        use super::*;
+
+        #[rental_mut]
+        pub struct VolumeHeaderRental {
+            message: FakeBox<Builder<PageAllocator>>,
+            header: volume_header::Builder<'message>,
+        }
+
+        #[rental_mut]
+        pub struct StrandHeaderRental {
+            message: FakeBox<Builder<PageAllocator>>,
+            header: strand_header::Builder<'message>,
+        }
+    }
 }
 
+use self::rentals::{VolumeHeaderRental, StrandHeaderRental};
+
+pub struct VolumeHeader(VolumeHeaderRental);
+
 impl VolumeHeader {
-    pub fn new(strands: u16) -> Self {
-        VolumeHeader {
-            strands: strands,
-            state_ptr: None,
-        }
+    pub fn new(strands: u16, state_ptr: u64) -> Self {
+        let message = Builder::new(PageAllocator::new());
+        let fbox = unsafe { FakeBox::new(message) };
+        let rental = VolumeHeaderRental::new(fbox, |message| {
+            let mut header = message.init_root::<volume_header::Builder>();
+
+            header.set_signature(serial_capnp::VOLUME_MAGIC);
+            header.set_strands(strands);
+            header.set_state_ptr(state_ptr);
+
+            let (major, minor, patch) = *VERSION;
+            header.set_version_major(major);
+            header.set_version_minor(minor);
+            header.set_version_patch(patch);
+
+            header
+        });
+
+        VolumeHeader(rental)
     }
 
     pub fn read(page: &Page) -> Result<Self> {
@@ -51,58 +83,16 @@ impl VolumeHeader {
             return Err(Error::Corrupt);
         }
 
-        {
-            let version = header.get_version()?;
-            let (major, _, _) = *VERSION;
-
-            // Only check the major version for disk format changes
-            if version.get_major() != major {
-                return Err(Error::IncompatibleVersion);
-            }
-
-            let _ = version.get_minor();
-            let _ = version.get_patch();
+        // Only check the major version for disk format changes
+        let (major, _, _) = *VERSION;
+        if header.get_version_major() != major {
+            return Err(Error::IncompatibleVersion);
         }
 
         let strands = header.get_strands();
-        let state_ptr = match header.get_state_ptr() {
-            ptr => Some(ptr),
-            0 => None,
-        };
+        let state_ptr = header.get_state_ptr();
 
-        Ok(VolumeHeader {
-            strands: strands,
-            state_ptr: state_ptr,
-        })
-    }
-
-    pub fn write(&self, page: &mut Page) -> Result<()> {
-        let mut message = Builder::new_default();
-        {
-            let mut header = message.init_root::<volume_header::Builder>();
-            header.set_signature(serial_capnp::VOLUME_MAGIC);
-            header.set_strands(self.strands);
-            header.set_state_ptr(self.state_ptr.unwrap_or(0));
-
-            {
-                let mut version = header.borrow().get_version()?;
-                let (major, minor, patch) = *VERSION;
-
-                version.set_major(major);
-                version.set_minor(minor);
-                version.set_patch(patch);
-            }
-        }
-
-        let mut slice = &mut page[..];
-        serialize_packed::write_message(&mut slice, &message)?;
-
-        Ok(())
-    }
-
-    #[inline]
-    pub fn strands(&self) -> u16 {
-        self.strands
+        Ok(Self::new(strands, state_ptr))
     }
 }
 
@@ -145,18 +135,14 @@ impl StrandHeader {
         let id = header.get_id();
         let capacity = header.get_capacity();
         let offset = header.get_offset();
-        let stats = {
-            let stats = header.get_stats()?;
-
-            StrandStats {
-                read_bytes: stats.get_read_bytes(),
-                written_bytes: stats.get_written_bytes(),
-                trimmed_bytes: stats.get_trimmed_bytes(),
-                buffer_read_bytes: stats.get_buffer_read_bytes(),
-                buffer_written_bytes: stats.get_buffer_written_bytes(),
-                valid_items: stats.get_valid_items(),
-                deleted_items: stats.get_deleted_items(),
-            }
+        let stats = StrandStats {
+            read_bytes: header.get_stats_read_bytes(),
+            written_bytes: header.get_stats_written_bytes(),
+            trimmed_bytes: header.get_stats_trimmed_bytes(),
+            buffer_read_bytes: header.get_stats_buffer_read_bytes(),
+            buffer_written_bytes: header.get_stats_buffer_written_bytes(),
+            valid_items: header.get_stats_valid_items(),
+            deleted_items: header.get_stats_deleted_items(),
         };
 
         Ok(StrandHeader {
@@ -175,16 +161,13 @@ impl StrandHeader {
             header.set_id(self.id);
             header.set_capacity(self.capacity);
 
-            {
-                let mut stats = header.borrow().get_stats()?;
-                stats.set_read_bytes(self.stats.read_bytes);
-                stats.set_written_bytes(self.stats.written_bytes);
-                stats.set_trimmed_bytes(self.stats.trimmed_bytes);
-                stats.set_buffer_read_bytes(self.stats.buffer_read_bytes);
-                stats.set_buffer_written_bytes(self.stats.buffer_written_bytes);
-                stats.set_valid_items(self.stats.valid_items);
-                stats.set_deleted_items(self.stats.deleted_items);
-            }
+            header.set_stats_read_bytes(self.stats.read_bytes);
+            header.set_stats_written_bytes(self.stats.written_bytes);
+            header.set_stats_trimmed_bytes(self.stats.trimmed_bytes);
+            header.set_stats_buffer_read_bytes(self.stats.buffer_read_bytes);
+            header.set_stats_buffer_written_bytes(self.stats.buffer_written_bytes);
+            header.set_stats_valid_items(self.stats.valid_items);
+            header.set_stats_deleted_items(self.stats.deleted_items);
         }
 
         let mut slice = &mut page[..];

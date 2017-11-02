@@ -1,5 +1,5 @@
 /*
- * serial/mod.rs
+ * fake_box.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,14 +19,28 @@
  *
  */
 
-mod alloc;
-mod fake_box;
-mod header;
-mod io;
-mod item;
+use stable_deref_trait::StableDeref;
+use std::ops::{Deref, DerefMut};
 
-use super::*;
+// An unsafe container that acts like a Box<T> with regards
+// to having a "stable deref address". This is actually done
+// by asserting that the user will _not_ move this object
+// or any composite structures that contain this.
+pub struct FakeBox<T>(T);
 
-pub use self::header::{StrandHeader, VolumeHeader};
-pub use self::item::{Item, ReadContext};
-pub use self::io::{StrandReader, StrandWriter};
+impl<T> FakeBox<T> {
+    pub unsafe fn new(object: T) -> Self {
+        FakeBox(object)
+    }
+}
+
+impl<T> Deref for FakeBox<T> {
+    type Target = T;
+    fn deref(&self) -> &T { &self.0 }
+}
+
+impl<T> DerefMut for FakeBox<T> {
+    fn deref_mut(&mut self) -> &mut T { &mut self.0 }
+}
+
+unsafe impl<T> StableDeref for FakeBox<T> {}

@@ -37,6 +37,10 @@ extern crate lru_time_cache;
 extern crate num_cpus;
 extern crate parking_lot;
 
+#[macro_use]
+extern crate rental;
+extern crate stable_deref_trait;
+
 #[cfg(unix)]
 #[macro_use]
 extern crate nix;
