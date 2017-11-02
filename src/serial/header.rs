@@ -157,12 +157,12 @@ impl StrandHeader {
         Self::_new(id, capacity, PAGE_SIZE64, &StrandStats::default())
     }
 
-    pub fn from(strand: &Strand) -> Self {
+    pub fn from(strand: &mut Strand) -> Self {
         Self::_new(
             strand.id(),
             strand.capacity(),
             strand.offset(),
-            &strand.stats.lock().clone(),
+            strand.stats.get_mut(),
         )
     }
 

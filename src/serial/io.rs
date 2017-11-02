@@ -159,7 +159,7 @@ impl<'s, 'd> StrandWriter<'s, 'd> {
     }
 
     pub fn write_metadata(&mut self) -> io::Result<()> {
-        let header = StrandHeader::from(self.strand);
+        let header = StrandHeader::from(&mut self.strand);
         let mut page = Page::default();
         header.write(&mut page).map_err(to_io_error)?;
         self.strand.write(0, &page).map_err(to_io_error)?;
