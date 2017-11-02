@@ -71,7 +71,8 @@ pub struct Item;
 
 impl Item {
     pub fn read<F, R>(strand: &Strand, ptr: FilePointer, func: F) -> Result<R>
-        where F: FnOnce(ReadContext) -> Result<R>
+    where
+        F: FnOnce(ReadContext) -> Result<R>,
     {
         let mut strand_reader = StrandReader::new(strand, ptr);
         let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;

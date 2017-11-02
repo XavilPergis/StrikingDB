@@ -36,11 +36,15 @@ impl<T> FakeBox<T> {
 
 impl<T> Deref for FakeBox<T> {
     type Target = T;
-    fn deref(&self) -> &T { &self.0 }
+    fn deref(&self) -> &T {
+        &self.0
+    }
 }
 
 impl<T> DerefMut for FakeBox<T> {
-    fn deref_mut(&mut self) -> &mut T { &mut self.0 }
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.0
+    }
 }
 
 unsafe impl<T> StableDeref for FakeBox<T> {}

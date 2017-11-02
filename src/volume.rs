@@ -48,7 +48,10 @@ impl VolumeOpen {
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
-        assert!(count <= u16::MAX as u64, "Integer not large enough for all these strands");
+        assert!(
+            count <= u16::MAX as u64,
+            "Integer not large enough for all these strands"
+        );
 
         VolumeOpen {
             strand_count: count as u16,
@@ -125,7 +128,8 @@ impl Volume {
     }
 
     pub fn read<F, R>(&self, ptr: FilePointer, func: F) -> R
-        where F: FnOnce(&Strand) -> R
+    where
+        F: FnOnce(&Strand) -> R,
     {
         self.0.rent(|strands| {
             // Search for the strand that has this file pointer
@@ -150,7 +154,8 @@ impl Volume {
     }
 
     pub fn write<F, R>(&self, func: F) -> R
-        where F: FnOnce(&mut Strand) -> R
+    where
+        F: FnOnce(&mut Strand) -> R,
     {
         let delay = Duration::new(0, 100 * 1000);
 

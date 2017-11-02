@@ -109,11 +109,15 @@ impl VolumeHeader {
     }
 
     pub fn get_strands(&self) -> u16 {
-        self.0.rent(|message| message.borrow_as_reader().get_strands())
+        self.0.rent(
+            |message| message.borrow_as_reader().get_strands(),
+        )
     }
 
     pub fn get_state_ptr(&self) -> Option<u64> {
-        self.0.rent(|message| Self::null(message.borrow_as_reader().get_state_ptr()))
+        self.0.rent(|message| {
+            Self::null(message.borrow_as_reader().get_state_ptr())
+        })
     }
 
     pub fn set_strands(&mut self, strands: u16) {
@@ -121,7 +125,9 @@ impl VolumeHeader {
     }
 
     pub fn set_state_ptr(&mut self, state_ptr: Option<u64>) {
-        self.0.rent_mut(|message| message.set_state_ptr(state_ptr.unwrap_or(0)));
+        self.0.rent_mut(|message| {
+            message.set_state_ptr(state_ptr.unwrap_or(0))
+        });
     }
 }
 
@@ -203,11 +209,15 @@ impl StrandHeader {
     }
 
     pub fn get_capacity(&self) -> u64 {
-        self.0.rent(|message| message.borrow_as_reader().get_capacity())
+        self.0.rent(
+            |message| message.borrow_as_reader().get_capacity(),
+        )
     }
 
     pub fn get_offset(&self) -> u64 {
-        self.0.rent(|message| message.borrow_as_reader().get_offset())
+        self.0.rent(
+            |message| message.borrow_as_reader().get_offset(),
+        )
     }
 
     pub fn get_stats(&self) -> StrandStats {

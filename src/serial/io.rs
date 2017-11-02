@@ -55,7 +55,10 @@ pub struct StrandReader<'s, 'd: 's> {
 
 impl<'s, 'd> StrandReader<'s, 'd> {
     pub fn new(strand: &'s Strand<'d>, ptr: FilePointer) -> Self {
-        assert!(strand.contains_ptr(ptr), "Pointer isn't in the bounds of this strand");
+        assert!(
+            strand.contains_ptr(ptr),
+            "Pointer isn't in the bounds of this strand"
+        );
 
         StrandReader {
             strand: strand,
@@ -74,7 +77,7 @@ impl<'s, 'd> StrandReader<'s, 'd> {
             Ok(_) => {
                 self.status = BufferStatus::Clean;
                 Ok(())
-            },
+            }
             Err(e) => Err(to_io_error(e)),
         }
     }
@@ -96,7 +99,7 @@ impl<'s, 'd> Read for StrandReader<'s, 'd> {
         let len = cmp::min(PAGE_SIZE - off, buf.len());
 
         // Copy data
-        let src = &self.page[off..off+len];
+        let src = &self.page[off..off + len];
         let dest = &mut buf[..len];
         dest.copy_from_slice(src);
 
@@ -170,14 +173,19 @@ impl<'s, 'd> StrandWriter<'s, 'd> {
 impl<'s, 'd> Write for StrandWriter<'s, 'd> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if buf.len() > self.strand.remaining() as usize {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Out of disk space"));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "Out of disk space",
+            ));
         }
 
         let block_off = block_align(self.cursor);
 
         // Update buffer if needed
         if self.status == BufferStatus::Empty {
-            self.strand.read(block_off, &mut self.block).map_err(to_io_error)?;
+            self.strand.read(block_off, &mut self.block).map_err(
+                to_io_error,
+            )?;
             self.status = BufferStatus::Clean;
         }
 
@@ -188,7 +196,7 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
         // Copy data
         {
             let src = &buf[..len];
-            let dest = &mut self.block[off..off+len];
+            let dest = &mut self.block[off..off + len];
             dest.copy_from_slice(src);
         }
 
@@ -203,7 +211,9 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
 
         // Flush if necessary
         if off + len >= TRIM_SIZE {
-            self.strand.write(block_off, &self.block).map_err(to_io_error)?;
+            self.strand.write(block_off, &self.block).map_err(
+                to_io_error,
+            )?;
             self.status = BufferStatus::Clean;
         }
 
