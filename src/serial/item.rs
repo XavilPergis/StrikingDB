@@ -21,7 +21,7 @@
 
 use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
-use std::cmp;
+use std::cmp::min;
 use std::io::Write;
 use super::serial_capnp::item;
 use super::strand::Strand;
@@ -44,7 +44,7 @@ impl<'a> ReadContext<'a> {
     }
 
     fn copy_slice(slice: &[u8], buffer: &mut [u8]) -> usize {
-        let len = cmp::min(slice.len(), buffer.len());
+        let len = min(slice.len(), buffer.len());
 
         let dest = &mut buffer[..len];
         let src = &slice[..len];

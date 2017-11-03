@@ -21,7 +21,8 @@
 
 use lru_time_cache::LruCache;
 use parking_lot::RwLock;
-use std::{cmp, fmt};
+use std::cmp::min;
+use std::fmt;
 
 pub struct ReadCache(RwLock<LruCache<Box<[u8]>, Box<[u8]>>>);
 
@@ -49,7 +50,7 @@ impl ReadCache {
     pub fn get(&self, key: &[u8], val: &mut [u8]) -> Option<usize> {
         self.0.write().get(key).map(move |slice| {
             let slice = &**slice;
-            let len = cmp::min(val.len(), slice.len());
+            let len = min(val.len(), slice.len());
 
             let dest = &mut val[..len];
             let src = &slice[..len];

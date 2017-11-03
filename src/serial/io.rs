@@ -19,7 +19,7 @@
  *
  */
 
-use std::cmp;
+use std::cmp::min;
 use std::io::{self, BufRead, Read, Write};
 use super::buffer::{Block, Page};
 use super::error::Error;
@@ -96,7 +96,7 @@ impl<'s, 'd> Read for StrandReader<'s, 'd> {
 
         // Determine how many bytes to read
         let off = (self.cursor - page_off) as usize;
-        let len = cmp::min(PAGE_SIZE - off, buf.len());
+        let len = min(PAGE_SIZE - off, buf.len());
 
         // Copy data
         let src = &self.page[off..off + len];
@@ -133,7 +133,7 @@ impl<'s, 'd> BufRead for StrandReader<'s, 'd> {
 
     fn consume(&mut self, amt: usize) {
         let amt = amt as u64;
-        self.cursor = cmp::min(self.cursor + amt, self.strand.capacity());
+        self.cursor = min(self.cursor + amt, self.strand.capacity());
     }
 }
 
@@ -191,7 +191,7 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
 
         // Determine how many bytes to write
         let off = self.cursor as usize % TRIM_SIZE;
-        let len = cmp::min(TRIM_SIZE - off, buf.len());
+        let len = min(TRIM_SIZE - off, buf.len());
 
         // Copy data
         {

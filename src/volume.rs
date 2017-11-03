@@ -28,7 +28,7 @@ use num_cpus;
 use options::{OpenMode, OpenOptions};
 use parking_lot::RwLock;
 use serial::{DatastoreState, VolumeHeader};
-use std::cmp::{self, Ordering};
+use std::cmp::{Ordering, min};
 use std::time::Duration;
 use std::u16;
 use strand::Strand;
@@ -146,7 +146,7 @@ impl Volume {
             for i in 0..open.strands {
                 // The first page is reserved for metadata
                 let off = (i as u64) * size + PAGE_SIZE64;
-                let len = cmp::min(size, left);
+                let len = min(size, left);
                 debug_assert_eq!(off % PAGE_SIZE64, 0, "Strand offset is not page-aligned");
                 debug_assert_eq!(len % PAGE_SIZE64, 0, "Strand length is not page-aligned");
                 debug_assert_ne!(len, 0, "Length of strand must be nonzero");
@@ -157,7 +157,6 @@ impl Volume {
                 strands.push(lock);
             }
             debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
-
 
             Ok(strands.into_boxed_slice())
         });
