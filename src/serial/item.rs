@@ -66,7 +66,7 @@ impl<'a> ReadContext<'a> {
     }
 }
 
-pub fn read<F, R>(strand: &Strand, ptr: FilePointer, func: F) -> Result<R>
+pub fn read_item<F, R>(strand: &Strand, ptr: FilePointer, func: F) -> Result<R>
 where
     F: FnOnce(ReadContext) -> Result<R>,
 {
@@ -79,7 +79,7 @@ where
     Ok(func(ctx)?)
 }
 
-pub fn write(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePointer> {
+pub fn write_item(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePointer> {
     let mut message = Builder::new_default();
     {
         let mut item = message.init_root::<item::Builder>();
