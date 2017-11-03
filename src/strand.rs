@@ -19,8 +19,10 @@
  *
  */
 
+use buffer::Page;
 use device::Device;
 use parking_lot::Mutex;
+use serial::StrandHeader;
 use std::ops::Deref;
 use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
 
@@ -37,17 +39,18 @@ pub struct StrandStats {
 
 #[derive(Debug)]
 pub struct Strand<'d> {
-    dev: &'d Device,
+    device: &'d Device,
+    header: StrandHeader,
     id: u16,
     start: u64,
     capacity: u64,
-    pub offset: u64,
+    offset: u64,
     pub stats: Mutex<StrandStats>,
 }
 
 impl<'d> Strand<'d> {
     pub fn new(
-        dev: &'d Device,
+        device: &'d Device,
         id: u16,
         start: u64,
         capacity: u64,
@@ -64,29 +67,30 @@ impl<'d> Strand<'d> {
             "Capacity is not a multiple of the page size"
         );
         assert!(
-            start + capacity >= dev.capacity(),
+            start + capacity >= device.capacity(),
             "Strand extends off the boundary of the device"
         );
         assert!(capacity > PAGE_SIZE64, "Strand only one page long");
 
         let header = {
-            let mut buf = [0; PAGE_SIZE];
             if read_strand {
-                dev.read(0, &mut buf[..])?;
-            // TODO capnp proto read
+                let mut page = Page::default();
+                device.read(0, &mut page[..])?;
+                StrandHeader::read(&page)?
             } else {
-                // TODO capnp proto write
-                dev.write(0, &buf[..])?;
+                StrandHeader::new(id, capacity)
             }
         };
 
+        let offset = header.get_offset();
+
         Ok(Strand {
-            dev: dev,
+            device: device,
+            header: header,
             id: id,
             start: start,
             capacity: capacity,
-            // FIXME - off: header.offset,
-            offset: PAGE_SIZE64,
+            offset: offset,
             stats: Mutex::new(StrandStats::default()),
         })
     }
@@ -122,8 +126,8 @@ impl<'d> Strand<'d> {
     }
 
     #[inline]
-    pub fn offset_mut(&mut self) -> &mut u64 {
-        &mut self.offset
+    pub fn push_offset(&mut self, amt: u64) {
+        self.offset += amt;
     }
 
     #[inline]
@@ -141,7 +145,7 @@ impl<'d> Strand<'d> {
             stats.read_bytes += buf.len() as u64;
         }
 
-        self.dev.read(self.start + off, buf)
+        self.device.read(self.start + off, buf)
     }
 
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
@@ -154,7 +158,7 @@ impl<'d> Strand<'d> {
             stats.written_bytes += buf.len() as u64;
         }
 
-        self.dev.write(self.start + off, buf)
+        self.device.write(self.start + off, buf)
     }
 
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
@@ -166,6 +170,6 @@ impl<'d> Strand<'d> {
             stats.trimmed_bytes += len;
         }
 
-        self.dev.trim(self.start + off, len)
+        self.device.trim(self.start + off, len)
     }
 }

@@ -126,6 +126,7 @@ impl Volume {
         let try_rental = VolumeRental::try_new(Box::new(device), |device| {
             use OpenMode::*;
 
+            // Collect options
             let open = match options.mode {
                 Read => VolumeOpen::read(&device, options)?,
                 Create | Truncate => VolumeOpen::new(&device, options)?,
@@ -139,6 +140,7 @@ impl Volume {
                 device.trim(0, device.capacity())?;
             }
 
+            // Divide device into strands
             let mut left = device.capacity();
             let size = align(device.capacity() / open.strands as u64);
 
@@ -153,13 +155,16 @@ impl Volume {
 
                 left -= len;
                 let strand = Strand::new(&device, i, off, len, open.read_disk)?;
-                let lock = RwLock::new(strand);
-                strands.push(lock);
+                strands.push(RwLock::new(strand));
             }
             debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
             Ok(strands.into_boxed_slice())
         });
+
+        if options.reindex {
+            return Err(Error::Unimplemented);
+        }
 
         match try_rental {
             Ok(rental) => {

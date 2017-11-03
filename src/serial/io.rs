@@ -205,7 +205,7 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
             let len = len as u64;
             self.status = BufferStatus::Dirty;
             self.cursor += len;
-            self.strand.offset += len;
+            self.strand.push_offset(len);
             self.strand.stats.get_mut().buffer_written_bytes += len;
         }
 

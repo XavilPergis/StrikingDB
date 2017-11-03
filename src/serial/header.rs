@@ -23,6 +23,7 @@ use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
 use self::rentals::{VolumeHeaderRental, StrandHeaderRental};
 use serial_capnp::{self, strand_header, volume_header};
+use std::fmt;
 use std::io::{Read, Write};
 use super::alloc::PageAllocator;
 use super::buffer::Page;
@@ -130,6 +131,12 @@ impl VolumeHeader {
         self.0.rent_mut(|message| {
             message.set_state_ptr(state_ptr.unwrap_or(0))
         });
+    }
+}
+
+impl fmt::Debug for VolumeHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "VolumeHeader {{ .. }}")
     }
 }
 
@@ -260,5 +267,11 @@ impl StrandHeader {
             message.set_stats_valid_items(stats.valid_items);
             message.set_stats_deleted_items(stats.deleted_items);
         })
+    }
+}
+
+impl fmt::Debug for StrandHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "StrandHeader {{ .. }}")
     }
 }
