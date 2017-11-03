@@ -103,7 +103,14 @@ impl Store {
             return Err(Error::ItemExists);
         }
 
-        let ptr = self.volume.write(|strand| Item::write(strand, key, val))?;
+        let ptr = self.volume.write(|strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.valid_items += 1;
+            }
+
+            Item::write(strand, key, val)
+        })?;
 
         entry.value = Some(ptr);
         Ok(())
@@ -119,7 +126,15 @@ impl Store {
         }
 
         let old_ptr = entry.value.unwrap();
-        let ptr = self.volume.write(|strand| Item::write(strand, key, val))?;
+        let ptr = self.volume.write(|strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.valid_items += 1;
+                stats.deleted_items += 1;
+            }
+
+            Item::write(strand, key, val)
+        })?;
 
         self.remove_item(key, old_ptr);
         entry.value = Some(ptr);
@@ -133,7 +148,15 @@ impl Store {
         let mut entry = self.index.lock(key);
 
         let old_ptr = entry.value.unwrap();
-        let ptr = self.volume.write(|strand| Item::write(strand, key, val))?;
+        let ptr = self.volume.write(|strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.valid_items += 1;
+                if entry.exists() { stats.deleted_items += 1 }
+            }
+
+            Item::write(strand, key, val)
+        })?;
 
         if entry.exists() {
             self.remove_item(key, old_ptr);
@@ -159,10 +182,14 @@ impl Store {
             return Ok(len);
         }
 
-        self.volume.read(
-            ptr,
-            |strand| self.lookup_item(strand, ptr, val),
-        )
+        self.volume.read(ptr, |strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            }
+
+            self.lookup_item(strand, ptr, val)
+        })
     }
 
     pub fn remove(&self, key: &[u8]) -> Result<()> {
