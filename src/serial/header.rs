@@ -27,7 +27,6 @@ use std::fmt;
 use std::io::{Read, Write};
 use super::alloc::PageAllocator;
 use super::buffer::Page;
-use super::fake_box::FakeBox;
 use super::stats::Stats;
 use super::strand::Strand;
 use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
@@ -38,13 +37,13 @@ rental! {
 
         #[rental_mut]
         pub struct VolumeHeaderRental {
-            message: FakeBox<Builder<PageAllocator>>,
+            message: Box<Builder<PageAllocator>>,
             header: volume_header::Builder<'message>,
         }
 
         #[rental_mut]
         pub struct StrandHeaderRental {
-            message: FakeBox<Builder<PageAllocator>>,
+            message: Box<Builder<PageAllocator>>,
             header: strand_header::Builder<'message>,
         }
     }
@@ -55,8 +54,7 @@ pub struct VolumeHeader(VolumeHeaderRental);
 impl VolumeHeader {
     pub fn new(strands: u16, state_ptr: Option<FilePointer>) -> Self {
         let message = Builder::new(PageAllocator::new());
-        let fbox = unsafe { FakeBox::new(message) };
-        let rental = VolumeHeaderRental::new(fbox, |message| {
+        let rental = VolumeHeaderRental::new(Box::new(message), |message| {
             let mut header = message.init_root::<volume_header::Builder>();
 
             header.set_signature(serial_capnp::VOLUME_MAGIC);
@@ -146,8 +144,7 @@ pub struct StrandHeader(StrandHeaderRental);
 impl StrandHeader {
     fn _new(id: u16, capacity: u64, offset: u64, stats: &Stats) -> Self {
         let message = Builder::new(PageAllocator::new());
-        let fbox = unsafe { FakeBox::new(message) };
-        let rental = StrandHeaderRental::new(fbox, |message| {
+        let rental = StrandHeaderRental::new(Box::new(message), |message| {
             let mut header = message.init_root::<strand_header::Builder>();
 
             header.set_signature(serial_capnp::STRAND_MAGIC);

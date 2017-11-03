@@ -20,7 +20,6 @@
  */
 
 mod alloc;
-mod fake_box;
 mod header;
 mod io;
 mod item;

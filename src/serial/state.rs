@@ -29,7 +29,6 @@ use std::fmt;
 use std::io::{Read, Write};
 use strand::Strand;
 use super::deleted::{Deleted, DeletedSet};
-use super::fake_box::FakeBox;
 use super::index::{Index, IndexTree};
 use super::volume::VolumeState;
 use super::{FilePointer, Result, StrandReader, StrandWriter};
@@ -40,7 +39,7 @@ rental! {
 
         #[rental_mut]
         pub struct DatastoreStateRental {
-            message: FakeBox<Builder<HeapAllocator>>,
+            message: Box<Builder<HeapAllocator>>,
             header: datastore_state::Builder<'message>,
         }
     }
@@ -51,8 +50,7 @@ pub struct DatastoreState(DatastoreStateRental);
 impl DatastoreState {
     pub fn new(index: &IndexTree, deleted: &DeletedSet) -> Self {
         let message = Builder::new_default();
-        let fbox = unsafe { FakeBox::new(message) };
-        let rental = DatastoreStateRental::new(fbox, |message| {
+        let rental = DatastoreStateRental::new(Box::new(message), |message| {
             let mut state = message.init_root::<datastore_state::Builder>();
 
             state.set_signature(serial_capnp::STATE_MAGIC);
