@@ -27,12 +27,11 @@ use serial_capnp::{self, datastore_state, map};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 use strand::Strand;
-use super::deleted::Deleted;
+use super::deleted::{Deleted, DeletedSet};
 use super::fake_box::FakeBox;
-use super::index::Index;
+use super::index::{Index, IndexTree};
 use super::volume::VolumeState;
-use super::StrandReader;
-use super::{FilePointer, Result};
+use super::{FilePointer, Result, StrandReader, StrandWriter};
 
 rental! {
     mod rentals {
@@ -49,6 +48,40 @@ rental! {
 pub struct DatastoreState(DatastoreStateRental);
 
 impl DatastoreState {
+    pub fn new(index: &IndexTree, deleted: &DeletedSet) -> Self {
+        let message = Builder::new_default();
+        let fbox = unsafe { FakeBox::new(message) };
+        let rental = DatastoreStateRental::new(fbox, |message| {
+            let mut state = message.init_root::<datastore_state::Builder>();
+
+            state.set_signature(serial_capnp::STATE_MAGIC);
+
+            {
+                let mut map = state.borrow().init_index();
+                let mut list = map.init_entries(index.len() as u32);
+
+                for (i, (key, &(ptr, _))) in index.iter().enumerate() {
+                    let mut entry = list.borrow().get(i as u32);
+                    entry.set_key(&**key);
+                    entry.init_value().set_pointer(ptr);
+                }
+            }
+
+            {
+                let mut list = state.borrow().init_deleted(deleted.len() as u32);
+
+                for (i, &ptr) in deleted.iter().enumerate() {
+                    let mut entry = list.borrow().get(i as u32);
+                    entry.set_pointer(ptr);
+                }
+            }
+
+            state
+        });
+
+        DatastoreState(rental)
+    }
+
     pub fn read(strand: &Strand, ptr: FilePointer) -> Result<VolumeState> {
         let mut reader = StrandReader::new(strand, ptr);
         let msg_reader = serialize_packed::read_message(&mut reader, ReaderOptions::new())?;
@@ -59,7 +92,7 @@ impl DatastoreState {
         }
 
         let index = {
-            let mut index = BTreeMap::new();
+            let mut index = IndexTree::new();
             let map = state.get_index()?;
             let list = map.get_entries()?;
 
@@ -81,7 +114,7 @@ impl DatastoreState {
         };
 
         let deleted = {
-            let mut deleted = BTreeSet::new();
+            let mut deleted = DeletedSet::new();
             let list = state.get_deleted()?;
 
             for entry in list.iter() {
@@ -97,5 +130,11 @@ impl DatastoreState {
         };
 
         Ok(VolumeState::new(index, deleted))
+    }
+
+    pub fn write(self, strand: &mut Strand) -> Result<()> {
+        let mut writer = StrandWriter::new(strand);
+        serialize_packed::write_message(&mut writer, &*self.0.into_head())?;
+        Ok(())
     }
 }

@@ -23,7 +23,7 @@ use parking_lot::RwLock;
 use std::collections::BTreeSet;
 use super::FilePointer;
 
-type DeletedSet = BTreeSet<FilePointer>;
+pub type DeletedSet = BTreeSet<FilePointer>;
 
 #[derive(Debug)]
 pub struct Deleted(RwLock<DeletedSet>);
@@ -44,6 +44,10 @@ impl Deleted {
 
     pub fn count(&self) -> usize {
         self.0.read().len()
+    }
+
+    pub fn get_mut(&mut self) -> &mut DeletedSet {
+        self.0.get_mut()
     }
 }
 

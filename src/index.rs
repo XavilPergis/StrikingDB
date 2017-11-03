@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::thread;
 use super::{MAX_KEY_LEN, FilePointer};
 
-type IndexTree = BTreeMap<Box<[u8]>, (FilePointer, bool)>;
+pub type IndexTree = BTreeMap<Box<[u8]>, (FilePointer, bool)>;
 
 #[must_use]
 #[derive(Debug)]
@@ -144,6 +144,10 @@ impl Index {
 
     pub fn count(&self) -> usize {
         self.0.read().len()
+    }
+
+    pub fn get_mut(&mut self) -> &mut IndexTree {
+        self.0.get_mut()
     }
 }
 
