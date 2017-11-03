@@ -19,12 +19,10 @@
  *
  */
 
-use capnp::message::{Builder, HeapAllocator, Reader, ReaderOptions};
+use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
-use self::rentals::WriteItemRental;
 use std::cmp::min;
 use std::io::Write;
-use super::fake_box::FakeBox;
 use super::serial_capnp::item;
 use super::strand::Strand;
 use super::{FilePointer, Result, StrandReader, StrandWriter};
@@ -65,60 +63,6 @@ impl<'a> ReadContext<'a> {
     pub fn copy_val(&self, val_buf: &mut [u8]) -> Result<usize> {
         let slice = self.0.get_value()?;
         Ok(Self::copy_slice(slice, val_buf))
-    }
-}
-
-rental! {
-    mod rentals {
-        use super::*;
-
-        /*
-        #[rental]
-        pub struct ReadItemRental {
-            message: FakeBox<Reader>,
-            item: item::Reader<'message>,
-        }
-        */
-
-        #[rental_mut]
-        pub struct WriteItemRental {
-            message: FakeBox<Builder<HeapAllocator>>,
-            item: item::Builder<'message>,
-        }
-    }
-}
-
-pub struct WriteItem<'s, 'd: 's> {
-    strand: &'s mut Strand<'d>,
-    rental: WriteItemRental,
-}
-
-impl<'s, 'd: 's> WriteItem<'s, 'd> {
-    pub fn new(strand: &'s mut Strand<'d>, key: &[u8], val: &[u8]) -> Self {
-        let message = Builder::new_default();
-        let fbox = unsafe { FakeBox::new(message) };
-        let rental = WriteItemRental::new(fbox, |message| {
-            let mut item = message.init_root::<item::Builder>();
-
-            item.set_key(key);
-            item.set_value(val);
-
-            item
-        });
-
-        WriteItem {
-            strand: strand,
-            rental: rental,
-        }
-    }
-
-    pub fn write(self) -> Result<FilePointer> {
-        let mut writer = StrandWriter::new(self.strand);
-        serialize_packed::write_message(&mut writer, &*self.rental.into_head())?;
-        writer.write_metadata()?;
-        writer.flush()?;
-
-        Ok(writer.get_pointer())
     }
 }
 
