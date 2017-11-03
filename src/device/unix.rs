@@ -23,7 +23,7 @@ use nix::libc;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::*;
-use super::{PAGE_SIZE, Error, Result};
+use super::{PAGE_SIZE64, TRIM_SIZE64, Error, Result};
 
 mod ioctl {
     const BLK: u8 = 0x12;
@@ -41,12 +41,12 @@ fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
 
         match result {
             Ok(_) => Ok((capacity, true)),
-            Err(_) => Err(Error::LowLevel),
+            Err(_) => Err(Error::Io(None)),
         }
     } else if ftype.is_file() {
         match fh.seek(SeekFrom::End(0)) {
             Ok(capacity) => Ok((capacity, false)),
-            Err(e) => Err(Error::Io(e)),
+            Err(e) => Err(Error::Io(Some(e))),
         }
     } else {
         Err(Error::FileType)
@@ -83,47 +83,47 @@ impl Device {
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         let len = buf.len() as u64;
-        debug_assert_eq!(off % PAGE_SIZE, 0, "Offset not a multiple of the page size");
-        debug_assert_eq!(len % PAGE_SIZE, 0, "Length not a multiple of the page size");
-        debug_assert!(off + len < self.capacity, "Read is out of bounds");
+        assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
+        assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
+        assert!(off + len < self.capacity, "Read is out of bounds");
 
         match self.fh.read_at(buf, off) {
             Ok(read) => {
                 assert_eq!(read, buf.len(), "Did not read full buffer");
                 Ok(())
             }
-            Err(e) => Err(Error::Io(e)),
+            Err(e) => Err(Error::Io(Some(e))),
         }
     }
 
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
         let len = buf.len() as u64;
-        debug_assert_eq!(off % PAGE_SIZE, 0, "Offset not a multiple of the page size");
-        debug_assert_eq!(len % PAGE_SIZE, 0, "Length not a multiple of the page size");
-        debug_assert!(off + len < self.capacity, "Write is out of bounds");
+        assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
+        assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
+        assert!(off + len < self.capacity, "Write is out of bounds");
 
         match self.fh.write_at(buf, off) {
             Ok(written) => {
                 assert_eq!(written, buf.len(), "Did not write full buffer");
                 Ok(())
             }
-            Err(e) => Err(Error::Io(e)),
+            Err(e) => Err(Error::Io(Some(e))),
         }
     }
 
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
-        debug_assert_eq!(off % PAGE_SIZE, 0, "Offset not a multiple of the page size");
-        debug_assert_eq!(len % PAGE_SIZE, 0, "Length not a multiple of the page size");
-        debug_assert!(off + len < self.capacity, "Trim is out of bounds");
+        assert_eq!(off % TRIM_SIZE64, 0, "Offset not a multiple of the trim size");
+        assert_eq!(len % TRIM_SIZE64, 0, "Length not a multiple of the trim size");
+        assert!(off + len < self.capacity, "Trim is out of bounds");
 
         if self.block {
-            // TODO
+            // TODO test
             let tuple = [off, len];
             let result = unsafe { ioctl::blkdiscard(self.fh.as_raw_fd(), &[tuple]) };
 
             match result {
                 Ok(_) => Ok(()),
-                Err(_) => Err(Error::LowLevel),
+                Err(_) => Err(Error::Io(None)),
             }
         } else {
             let ret = unsafe {
@@ -137,7 +137,7 @@ impl Device {
 
             match ret {
                 0 => Ok(()),
-                _ => Err(Error::LowLevel),
+                _ => Err(Error::Io(None)),
             }
         }
     }

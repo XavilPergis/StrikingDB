@@ -1,5 +1,5 @@
 /*
- * pod/item.rs
+ * buffer/page.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,26 +19,48 @@
  *
  */
 
-use super::{MAX_KEY_LEN, MAX_VAL_LEN, Pod};
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::ops::{Deref, DerefMut};
+use super::PAGE_SIZE;
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-#[repr(C, packed)]
-pub struct ItemHeader {
-    pub key_len: u16,
-    pub val_len: u16,
-}
+#[derive(Clone)]
+pub struct Page([u8; PAGE_SIZE]);
 
-impl ItemHeader {
-    pub fn new(key_len: u16, val_len: u16) -> Self {
-        ItemHeader {
-            key_len: key_len,
-            val_len: val_len,
-        }
+impl Deref for Page {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.0[..]
     }
 }
 
-unsafe impl Pod for ItemHeader {
-    fn validate(&self) -> bool {
-        self.key_len <= (MAX_KEY_LEN as u16) && self.val_len <= (MAX_VAL_LEN as u16)
+impl DerefMut for Page {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.0[..]
+    }
+}
+
+impl AsRef<[u8]> for Page {
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
+impl Default for Page {
+    fn default() -> Self {
+        Page([0; PAGE_SIZE])
+    }
+}
+
+impl Hash for Page {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.0[..]);
+    }
+}
+
+impl fmt::Debug for Page {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Page: {:?}..", &self.0[..16])
     }
 }

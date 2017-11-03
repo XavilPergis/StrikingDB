@@ -21,7 +21,8 @@
 
 use lru_time_cache::LruCache;
 use parking_lot::RwLock;
-use std::{cmp, fmt};
+use std::cmp::min;
+use std::fmt;
 
 pub struct ReadCache(RwLock<LruCache<Box<[u8]>, Box<[u8]>>>);
 
@@ -36,23 +37,20 @@ impl ReadCache {
     }
 
     pub fn key_exists(&self, key: &[u8]) -> bool {
-        let cache = self.0.read();
-        cache.contains_key(key)
+        self.0.read().contains_key(key)
     }
 
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Option<Box<[u8]>> {
-        let mut cache = self.0.write();
-        cache.insert(
+        self.0.write().insert(
             Vec::from(key).into_boxed_slice(),
             Vec::from(val).into_boxed_slice(),
         )
     }
 
     pub fn get(&self, key: &[u8], val: &mut [u8]) -> Option<usize> {
-        let mut cache = self.0.write();
-        cache.get(key).map(move |slice| {
+        self.0.write().get(key).map(move |slice| {
             let slice = &**slice;
-            let len = cmp::min(val.len(), slice.len());
+            let len = min(val.len(), slice.len());
 
             let dest = &mut val[..len];
             let src = &slice[..len];
@@ -62,9 +60,12 @@ impl ReadCache {
         })
     }
 
+    pub fn remove(&self, key: &[u8]) -> Option<Box<[u8]>> {
+        self.0.write().remove(key)
+    }
+
     pub fn clear(&self) {
-        let mut cache = self.0.write();
-        cache.clear();
+        self.0.write().clear();
     }
 }
 

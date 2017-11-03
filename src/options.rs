@@ -19,37 +19,30 @@
  *
  */
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OpenMode {
-    Open,
+    Read,
     Create,
     Truncate,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl Default for OpenMode {
+    fn default() -> Self {
+        OpenMode::Read
+    }
+}
+
+#[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 pub struct OpenOptions {
-    pub strands: Option<u32>,
-    pub read_cache: Option<usize>,
     pub mode: OpenMode,
+    pub strands: Option<u16>,
+    pub read_cache: Option<usize>,
+    pub reindex: bool,
 }
 
 impl OpenOptions {
     pub fn new() -> Self {
-        OpenOptions {
-            strands: None,
-            read_cache: None,
-            mode: OpenMode::Open,
-        }
-    }
-
-    pub fn strands(&mut self, strands: u32) -> &mut Self {
-        self.strands = Some(strands);
-        self
-    }
-
-    pub fn read_cache(&mut self, items: usize) -> &mut Self {
-        self.read_cache = Some(items);
-        self
+        OpenOptions::default()
     }
 
     pub fn create(&mut self) -> &mut Self {
@@ -59,6 +52,21 @@ impl OpenOptions {
 
     pub fn truncate(&mut self) -> &mut Self {
         self.mode = OpenMode::Truncate;
+        self
+    }
+
+    pub fn strands(&mut self, strands: u16) -> &mut Self {
+        self.strands = Some(strands);
+        self
+    }
+
+    pub fn read_cache(&mut self, items: usize) -> &mut Self {
+        self.read_cache = Some(items);
+        self
+    }
+
+    pub fn reindex(&mut self) -> &mut Self {
+        self.reindex = true;
         self
     }
 }

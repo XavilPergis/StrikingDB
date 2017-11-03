@@ -19,50 +19,81 @@
  *
  */
 
-use std::error::Error;
+use capnp;
 use std::fmt::{self, Display};
-use std::io;
+use std::{error, io, result};
 
-pub type SResult<T> = Result<T, SError>;
+pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
-pub enum SError {
+pub enum Error {
+    FileType,
+    Corrupt,
+    BadArgument(&'static str),
+    IncompatibleVersion,
+    OutOfSpace,
     ItemExists,
     ItemNotFound,
-    FileType,
-    Corruption,
-    Io(io::Error),
-    LowLevel,
+    InvalidKey,
+    InvalidValue,
+    Unimplemented,
+    Network,
+    Io(Option<io::Error>),
 }
 
-impl Error for SError {
+impl error::Error for Error {
     fn description(&self) -> &str {
+        use Error::*;
+
         match self {
-            &SError::ItemExists => "Item already exists",
-            &SError::ItemNotFound => "Item not found",
-            &SError::FileType => "Invalid file type",
-            &SError::Corruption => "Volume is corrupt",
-            &SError::Io(ref err) => err.description(),
-            &SError::LowLevel => "Low level I/O operation failure",
+            &FileType => "Invalid file type",
+            &OutOfSpace => "Volume is out of space",
+            &Corrupt => "Volume is corrupt",
+            &BadArgument(desc) => desc,
+            &IncompatibleVersion => "Volume is formatted with incompatible version",
+            &ItemExists => "Item already exists",
+            &ItemNotFound => "Item not found",
+            &InvalidKey => "Specified key was invalid",
+            &InvalidValue => "Specified value was invalid",
+            &Unimplemented => "That operation isn't implemented yet",
+            &Network => "General network error",
+            &Io(Some(ref err)) => err.description(),
+            &Io(None) => "Low level I/O failure",
         }
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&error::Error> {
+        use Error::*;
+
         match self {
-            &SError::Io(ref err) => Some(err),
+            &Io(Some(ref err)) => Some(err),
             _ => None,
         }
     }
 }
 
-impl Display for SError {
+impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use std::error::Error;
         write!(f, "{}", self.description())
     }
 }
 
-impl From<io::Error> for SError {
+impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        SError::Io(err)
+        Error::Io(Some(err))
+    }
+}
+
+impl From<capnp::Error> for Error {
+    fn from(err: capnp::Error) -> Self {
+        use capnp::ErrorKind::*;
+
+        match err.kind {
+            Failed => Error::Corrupt,
+            Overloaded => Error::OutOfSpace,
+            Disconnected => Error::Network,
+            Unimplemented => Error::Unimplemented,
+        }
     }
 }

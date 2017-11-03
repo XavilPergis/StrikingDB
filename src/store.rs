@@ -23,11 +23,14 @@ use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
+use serial::{DatastoreState, read_item, write_item};
+use stats::Stats;
 use std::fs::File;
-use super::Result;
+use strand::Strand;
 use super::device::Device;
-use super::error::SError;
+use super::error::Error;
 use super::volume::Volume;
+use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
 #[derive(Debug)]
 pub struct Store {
@@ -39,108 +42,212 @@ pub struct Store {
 
 impl Store {
     // Create
-    pub fn open(file: File, options: OpenOptions) -> Result<Self> {
+    pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
         let device = Device::open(file)?;
-        let volume = Volume::open(device, &options)?;
+        let (volume, state) = Volume::open(device, options)?;
+        let (index, deleted) = state.extract();
 
         Ok(Store {
-            volume,
-            index: Index::new(),
-            deleted: Deleted::new(),
+            volume: volume,
+            index: index,
+            deleted: deleted,
             cache: ReadCache::new(),
         })
     }
 
+    // Helper methods
+    #[inline]
+    fn verify_key(key: &[u8]) -> Result<()> {
+        if key.is_empty() || key.len() > MAX_KEY_LEN {
+            Err(Error::InvalidKey)
+        } else {
+            Ok(())
+        }
+    }
+
+    #[inline]
+    fn verify_val(val: &[u8]) -> Result<()> {
+        if val.len() > MAX_VAL_LEN {
+            Err(Error::InvalidValue)
+        } else {
+            Ok(())
+        }
+    }
+
     // Read
     pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
+        Self::verify_key(key)?;
+
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
         }
 
-        let ptr = match self.index.get(key) {
-            Some(ptr) => ptr,
-            None => return Err(SError::ItemNotFound),
-        };
+        let entry = self.index.lock(key);
+        if !entry.exists() {
+            return Err(Error::ItemNotFound);
+        }
 
-        let item = self.volume.read(ptr).item(ptr);
-        Ok(item.value(val))
+        let ptr = entry.value.unwrap();
+        self.volume.read(
+            ptr,
+            |strand| self.lookup_item(strand, ptr, val),
+        )
     }
 
     // Update
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
-        if self.index.key_exists(key) {
-            return Err(SError::ItemExists);
+        Self::verify_key(key)?;
+        Self::verify_val(val)?;
+
+        let mut entry = self.index.lock(key);
+        if entry.exists() {
+            return Err(Error::ItemExists);
         }
 
-        let ptr = self.volume.write().append(key, val)?;
-        self.index.put(key, ptr);
+        let ptr = self.volume.write(|strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.valid_items += 1;
+            }
+
+            write_item(strand, key, val)
+        })?;
+
+        entry.value = Some(ptr);
         Ok(())
     }
 
     pub fn update(&self, key: &[u8], val: &[u8]) -> Result<()> {
-        if !self.index.key_exists(key) {
-            return Err(SError::ItemNotFound);
+        Self::verify_key(key)?;
+        Self::verify_val(val)?;
+
+        let mut entry = self.index.lock(key);
+        if !entry.exists() {
+            return Err(Error::ItemNotFound);
         }
 
-        self.remove_item(key)?;
-        let ptr = self.volume.write().append(key, val)?;
-        self.index.put(key, ptr);
+        let old_ptr = entry.value.unwrap();
+        let ptr = self.volume.write(|strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.valid_items += 1;
+                stats.deleted_items += 1;
+            }
+
+            write_item(strand, key, val)
+        })?;
+
+        self.remove_item(key, old_ptr);
+        entry.value = Some(ptr);
         Ok(())
     }
 
     pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
-        if self.index.key_exists(key) {
-            self.remove_item(key)?;
+        Self::verify_key(key)?;
+        Self::verify_val(val)?;
+
+        let mut entry = self.index.lock(key);
+
+        let old_ptr = entry.value.unwrap();
+        let ptr = self.volume.write(|strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.valid_items += 1;
+                if entry.exists() {
+                    stats.deleted_items += 1
+                }
+            }
+
+            write_item(strand, key, val)
+        })?;
+
+        if entry.exists() {
+            self.remove_item(key, old_ptr);
         }
 
-        let ptr = self.volume.write().append(key, val)?;
-        self.index.put(key, ptr);
+        entry.value = Some(ptr);
         Ok(())
     }
 
     // Delete
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
-        if !self.index.key_exists(key) {
-            return Err(SError::ItemNotFound);
+        Self::verify_key(key)?;
+
+        let entry = self.index.lock(key);
+        if !entry.exists() {
+            return Err(Error::ItemNotFound);
         }
 
-        let ptr = match self.index.get(key) {
-            Some(ptr) => ptr,
-            None => return Err(SError::ItemNotFound),
-        };
+        let ptr = entry.value.unwrap();
+        self.remove_item(key, ptr);
 
-        let item = self.volume.read(ptr).item(ptr);
-        let bytes_witten = item.value(val);
+        if let Some(len) = self.cache.get(key, val) {
+            return Ok(len);
+        }
 
-        self.remove_item(key)?;
+        self.volume.read(ptr, |strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            }
 
-        Ok(bytes_witten)
+            self.lookup_item(strand, ptr, val)
+        })
     }
 
     pub fn remove(&self, key: &[u8]) -> Result<()> {
-        match self.remove_item(key) {
-            Ok(()) | Err(SError::ItemNotFound) => Ok(()),
-            Err(e) => Err(e),
+        Self::verify_key(key)?;
+
+        let entry = self.index.lock(key);
+        if let Some(ptr) = entry.value {
+            self.volume.read(ptr, |strand| {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            });
+
+            self.remove_item(key, ptr);
         }
-    }
 
-    fn remove_item(&self, key: &[u8]) -> Result<()> {
-        let ptr = match self.index.get(key) {
-            Some(ptr) => ptr,
-            None => return Err(SError::ItemNotFound),
-        };
-
-        self.deleted.put(ptr);
-        self.index.remove(key);
         Ok(())
     }
 
     // Stats
+    #[inline]
+    pub fn stats(&self) -> Stats {
+        self.volume.stats()
+    }
+
+    #[inline]
     pub fn items(&self) -> usize {
         self.index.count()
     }
 
-    pub fn deleted(&self) -> usize {
-        self.deleted.count()
+    // Helpers
+    fn lookup_item(&self, strand: &Strand, ptr: FilePointer, val: &mut [u8]) -> Result<usize> {
+        read_item(strand, ptr, |ctx| ctx.copy_val(val))
+    }
+
+    fn remove_item(&self, key: &[u8], ptr: FilePointer) {
+        self.cache.remove(key);
+        self.deleted.add(ptr);
+    }
+
+    fn write_state(&mut self) -> Result<()> {
+        let index = self.index.get_mut();
+        let deleted = self.deleted.get_mut();
+
+        self.volume.write(|strand| {
+            let state = DatastoreState::new(index, deleted);
+            state.write(strand)
+        })
     }
 }
+
+impl Drop for Store {
+    fn drop(&mut self) {
+        self.write_state().expect("Writing datastore state failed");
+    }
+}
+
+unsafe impl Send for Store {}
+unsafe impl Sync for Store {}

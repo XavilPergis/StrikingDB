@@ -19,84 +19,79 @@
  *
  */
 
+use buffer::Page;
 use device::Device;
-use item::Item;
-use pod::{Pod, StrandHeader};
-use std::mem;
+use parking_lot::Mutex;
+use serial::StrandHeader;
+use stats::Stats;
 use std::ops::Deref;
-use super::{PAGE_SIZE, FilePointer, Result};
+use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
 
 #[derive(Debug)]
-struct DeviceRef(*const Device);
-
-impl DeviceRef {
-    pub fn new(item: &Device) -> Self {
-        DeviceRef(item as *const Device)
-    }
-}
-
-impl Deref for DeviceRef {
-    type Target = Device;
-
-    fn deref(&self) -> &Device {
-        unsafe { &*self.0 }
-    }
-}
-
-#[derive(Debug)]
-pub struct Strand {
-    dev: DeviceRef,
+pub struct Strand<'d> {
+    device: &'d Device,
+    id: u16,
     start: u64,
     capacity: u64,
-    off: u64,
+    offset: u64,
+    pub stats: Mutex<Stats>,
 }
 
-impl Strand {
+impl<'d> Strand<'d> {
     pub fn new(
-        dev: &Device,
-        strand: u64,
+        device: &'d Device,
+        id: u16,
         start: u64,
         capacity: u64,
         read_strand: bool,
     ) -> Result<Self> {
         assert_eq!(
-            start % PAGE_SIZE,
+            start % PAGE_SIZE64,
             0,
             "Start is not a multiple of the page size"
         );
         assert_eq!(
-            capacity % PAGE_SIZE,
+            capacity % PAGE_SIZE64,
             0,
             "Capacity is not a multiple of the page size"
         );
         assert!(
-            start + capacity >= dev.capacity(),
+            start + capacity >= device.capacity(),
             "Strand extends off the boundary of the device"
         );
-        assert!(capacity > PAGE_SIZE, "Strand only one page long");
+        assert!(capacity > PAGE_SIZE64, "Strand only one page long");
 
-        let header = {
-            let mut buf = [0; PAGE_SIZE as usize];
+        let offset = {
+            let mut page = Page::default();
+
             if read_strand {
-                dev.read(0, &mut buf[..])?;
-                Pod::from_bytes(&buf[..mem::size_of::<StrandHeader>()])?
+                // Read existing header
+                device.read(0, &mut page[..])?;
+                let header = StrandHeader::read(&page)?;
+                header.get_offset()
             } else {
-                let header = StrandHeader::new(strand, PAGE_SIZE);
-                {
-                    let slice = &mut buf[0..mem::size_of::<StrandHeader>()];
-                    slice.copy_from_slice(header.as_bytes());
-                }
-                dev.write(0, &buf[..])?;
-                header
+                // Format strand
+                let header = StrandHeader::new(id, capacity);
+                header.write(&mut page);
+                device.write(0, &page[..])?;
+
+                PAGE_SIZE64
             }
         };
 
         Ok(Strand {
-            dev: DeviceRef::new(dev),
+            device: device,
+            id: id,
             start: start,
             capacity: capacity,
-            off: header.offset,
+            offset: offset,
+            stats: Mutex::new(Stats::default()),
         })
+    }
+
+    #[inline]
+    pub fn id(&self) -> u16 {
+        self.id
     }
 
     #[inline]
@@ -105,16 +100,40 @@ impl Strand {
     }
 
     #[inline]
+    pub fn end(&self) -> u64 {
+        self.start + self.capacity
+    }
+
+    #[inline]
     pub fn capacity(&self) -> u64 {
         self.capacity
     }
 
-    pub fn item(&self, ptr: FilePointer) -> Item {
-        unimplemented!();
+    #[inline]
+    pub fn remaining(&self) -> u64 {
+        self.capacity - self.offset
     }
 
-    pub fn append(&mut self, key: &[u8], value: &[u8]) -> Result<FilePointer> {
-        unimplemented!();
+    #[inline]
+    pub fn offset(&self) -> u64 {
+        self.offset
+    }
+
+    #[inline]
+    pub fn push_offset(&mut self, amt: u64) {
+        self.offset += amt;
+    }
+
+    #[inline]
+    pub fn contains_ptr(&self, ptr: FilePointer) -> bool {
+        self.start <= ptr && ptr <= self.start + self.capacity
+    }
+
+    pub fn write_metadata(&mut self) -> Result<()> {
+        let mut page = Page::default();
+        let header = StrandHeader::from(self);
+        header.write(&mut page);
+        self.write(0, &page[..])
     }
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
@@ -122,7 +141,12 @@ impl Strand {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        self.dev.read(self.start + off, buf)
+        {
+            let mut stats = self.stats.lock();
+            stats.read_bytes += buf.len() as u64;
+        }
+
+        self.device.read(self.start + off, buf)
     }
 
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
@@ -130,13 +154,29 @@ impl Strand {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        self.dev.write(self.start + off, buf)
+        {
+            let mut stats = self.stats.lock();
+            stats.written_bytes += buf.len() as u64;
+        }
+
+        self.device.write(self.start + off, buf)
     }
 
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");
 
-        self.dev.trim(self.start + off, len)
+        {
+            let mut stats = self.stats.lock();
+            stats.trimmed_bytes += len;
+        }
+
+        self.device.trim(self.start + off, len)
+    }
+}
+
+impl<'d> Drop for Strand<'d> {
+    fn drop(&mut self) {
+        self.write_metadata().expect("Error writing metadata");
     }
 }

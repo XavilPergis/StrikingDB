@@ -1,5 +1,5 @@
 /*
- * pod/strand.rs
+ * buffer/mod.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,30 +19,10 @@
  *
  */
 
-use super::Pod;
+mod block;
+mod page;
 
-const SIGNATURE: u64 = 0x582f047b5ed83a7f;
+use super::{PAGE_SIZE, TRIM_SIZE};
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-#[repr(C, packed)]
-pub struct StrandHeader {
-    pub signature: u64,
-    pub strand: u64,
-    pub offset: u64,
-}
-
-impl StrandHeader {
-    pub fn new(strand: u64, offset: u64) -> Self {
-        StrandHeader {
-            signature: SIGNATURE,
-            strand: strand,
-            offset: offset,
-        }
-    }
-}
-
-unsafe impl Pod for StrandHeader {
-    fn validate(&self) -> bool {
-        self.signature == SIGNATURE
-    }
-}
+pub use self::block::Block;
+pub use self::page::Page;

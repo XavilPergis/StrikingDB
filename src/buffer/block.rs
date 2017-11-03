@@ -1,5 +1,5 @@
 /*
- * deleted.rs
+ * buffer/block.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,40 +19,41 @@
  *
  */
 
-use parking_lot::RwLock;
-use std::collections::BTreeSet;
-use super::FilePointer;
+use std::fmt;
+use std::ops::{Deref, DerefMut};
+use super::TRIM_SIZE;
 
-pub type DeletedSet = BTreeSet<FilePointer>;
+#[derive(Clone)]
+pub struct Block([u8; TRIM_SIZE]);
 
-#[derive(Debug)]
-pub struct Deleted(RwLock<DeletedSet>);
-
-impl Deleted {
-    pub fn new() -> Self {
-        Deleted(RwLock::new(BTreeSet::new()))
-    }
-
-    pub fn from(set: DeletedSet) -> Self {
-        Deleted(RwLock::new(set))
-    }
-
-    pub fn add(&self, value: FilePointer) {
-        let exists = self.0.write().insert(value);
-        assert!(!exists, "Deleted item already tracked");
-    }
-
-    pub fn count(&self) -> usize {
-        self.0.read().len()
-    }
-
-    pub fn get_mut(&mut self) -> &mut DeletedSet {
-        self.0.get_mut()
+impl Default for Block {
+    fn default() -> Self {
+        Block([0; TRIM_SIZE])
     }
 }
 
-impl Default for Deleted {
-    fn default() -> Self {
-        Self::new()
+impl Deref for Block {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
+impl DerefMut for Block {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut self.0[..]
+    }
+}
+
+impl AsRef<[u8]> for Block {
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
+impl fmt::Debug for Block {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Block: {:?}..", &self.0[..16])
     }
 }

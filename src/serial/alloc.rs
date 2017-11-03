@@ -1,5 +1,5 @@
 /*
- * deleted.rs
+ * serial/alloc.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,40 +19,33 @@
  *
  */
 
-use parking_lot::RwLock;
-use std::collections::BTreeSet;
-use super::FilePointer;
+use capnp::Word;
+use capnp::message::Allocator;
+use super::buffer::Page;
 
-pub type DeletedSet = BTreeSet<FilePointer>;
+#[derive(Debug, Clone, Default, Hash)]
+pub struct PageAllocator {
+    page: Page,
+    off: usize,
+}
 
-#[derive(Debug)]
-pub struct Deleted(RwLock<DeletedSet>);
-
-impl Deleted {
+impl PageAllocator {
+    #[inline]
     pub fn new() -> Self {
-        Deleted(RwLock::new(BTreeSet::new()))
-    }
-
-    pub fn from(set: DeletedSet) -> Self {
-        Deleted(RwLock::new(set))
-    }
-
-    pub fn add(&self, value: FilePointer) {
-        let exists = self.0.write().insert(value);
-        assert!(!exists, "Deleted item already tracked");
-    }
-
-    pub fn count(&self) -> usize {
-        self.0.read().len()
-    }
-
-    pub fn get_mut(&mut self) -> &mut DeletedSet {
-        self.0.get_mut()
+        Self::default()
     }
 }
 
-impl Default for Deleted {
-    fn default() -> Self {
-        Self::new()
+unsafe impl Allocator for PageAllocator {
+    fn allocate_segment(&mut self, min_size: u32) -> (*mut Word, u32) {
+        let len = (min_size * 4) as usize;
+        if self.off + len >= self.page.len() {
+            panic!("PageAllocator is out of free space");
+        }
+
+        let ptr: *mut u8 = &mut self.page[self.off];
+        self.off += len;
+
+        (ptr as *mut Word, min_size)
     }
 }

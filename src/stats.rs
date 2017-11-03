@@ -1,5 +1,5 @@
 /*
- * deleted.rs
+ * stats.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,40 +19,27 @@
  *
  */
 
-use parking_lot::RwLock;
-use std::collections::BTreeSet;
-use super::FilePointer;
+use std::ops::AddAssign;
 
-pub type DeletedSet = BTreeSet<FilePointer>;
-
-#[derive(Debug)]
-pub struct Deleted(RwLock<DeletedSet>);
-
-impl Deleted {
-    pub fn new() -> Self {
-        Deleted(RwLock::new(BTreeSet::new()))
-    }
-
-    pub fn from(set: DeletedSet) -> Self {
-        Deleted(RwLock::new(set))
-    }
-
-    pub fn add(&self, value: FilePointer) {
-        let exists = self.0.write().insert(value);
-        assert!(!exists, "Deleted item already tracked");
-    }
-
-    pub fn count(&self) -> usize {
-        self.0.read().len()
-    }
-
-    pub fn get_mut(&mut self) -> &mut DeletedSet {
-        self.0.get_mut()
-    }
+#[derive(Debug, Hash, Clone, Default, PartialEq, Eq)]
+pub struct Stats {
+    pub read_bytes: u64,
+    pub written_bytes: u64,
+    pub trimmed_bytes: u64,
+    pub buffer_read_bytes: u64,
+    pub buffer_written_bytes: u64,
+    pub valid_items: u64,
+    pub deleted_items: u64,
 }
 
-impl Default for Deleted {
-    fn default() -> Self {
-        Self::new()
+impl AddAssign for Stats {
+    fn add_assign(&mut self, rhs: Self) {
+        self.read_bytes += rhs.read_bytes;
+        self.written_bytes += rhs.written_bytes;
+        self.trimmed_bytes += rhs.trimmed_bytes;
+        self.buffer_read_bytes += rhs.buffer_read_bytes;
+        self.buffer_written_bytes += rhs.buffer_written_bytes;
+        self.valid_items += rhs.valid_items;
+        self.deleted_items += rhs.deleted_items;
     }
 }

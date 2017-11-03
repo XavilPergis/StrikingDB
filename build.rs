@@ -1,5 +1,5 @@
 /*
- * deleted.rs
+ * build.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,40 +19,15 @@
  *
  */
 
-use parking_lot::RwLock;
-use std::collections::BTreeSet;
-use super::FilePointer;
+extern crate built;
+extern crate capnpc;
 
-pub type DeletedSet = BTreeSet<FilePointer>;
+fn main() {
+    built::write_built_file().expect("Compile-time information dump failed");
 
-#[derive(Debug)]
-pub struct Deleted(RwLock<DeletedSet>);
-
-impl Deleted {
-    pub fn new() -> Self {
-        Deleted(RwLock::new(BTreeSet::new()))
-    }
-
-    pub fn from(set: DeletedSet) -> Self {
-        Deleted(RwLock::new(set))
-    }
-
-    pub fn add(&self, value: FilePointer) {
-        let exists = self.0.write().insert(value);
-        assert!(!exists, "Deleted item already tracked");
-    }
-
-    pub fn count(&self) -> usize {
-        self.0.read().len()
-    }
-
-    pub fn get_mut(&mut self) -> &mut DeletedSet {
-        self.0.get_mut()
-    }
-}
-
-impl Default for Deleted {
-    fn default() -> Self {
-        Self::new()
-    }
+    capnpc::CompilerCommand::new()
+        .src_prefix("src")
+        .file("src/serial.capnp")
+        .run()
+        .expect("Capnp proto compilation failed");
 }
