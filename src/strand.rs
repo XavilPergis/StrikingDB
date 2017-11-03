@@ -65,10 +65,12 @@ impl<'d> Strand<'d> {
             let mut page = Page::default();
 
             if read_strand {
+                // Read existing header
                 device.read(0, &mut page[..])?;
                 let header = StrandHeader::read(&page)?;
                 header.get_offset()
             } else {
+                // Format strand
                 let header = StrandHeader::new(id, capacity);
                 header.write(&mut page);
                 device.write(0, &page[..])?;

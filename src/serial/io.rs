@@ -140,7 +140,7 @@ impl<'s, 'd> BufRead for StrandReader<'s, 'd> {
 #[derive(Debug)]
 pub struct StrandWriter<'s, 'd: 's> {
     strand: &'s mut Strand<'d>,
-    block: Block,
+    block: Box<Block>,
     status: BufferStatus,
     cursor: u64,
     pub update_offset: bool,
@@ -152,7 +152,7 @@ impl<'s, 'd> StrandWriter<'s, 'd> {
 
         StrandWriter {
             strand: strand,
-            block: Block::default(),
+            block: Box::new(Block::default()),
             status: BufferStatus::Empty,
             cursor: offset,
             update_offset: true,
