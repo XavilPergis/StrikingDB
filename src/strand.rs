@@ -141,8 +141,7 @@ impl<'d> Strand<'d> {
             stats.read_bytes += buf.len() as u64;
         }
 
-        let dev = unsafe { &*self.dev };
-        dev.read(self.start + off, buf)
+        self.dev.read(self.start + off, buf)
     }
 
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
@@ -155,8 +154,7 @@ impl<'d> Strand<'d> {
             stats.written_bytes += buf.len() as u64;
         }
 
-        let dev = unsafe { &*self.dev };
-        dev.write(self.start + off, buf)
+        self.dev.write(self.start + off, buf)
     }
 
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
@@ -168,7 +166,6 @@ impl<'d> Strand<'d> {
             stats.trimmed_bytes += len;
         }
 
-        let dev = unsafe { &*self.dev };
-        dev.trim(self.start + off, len)
+        self.dev.trim(self.start + off, len)
     }
 }
