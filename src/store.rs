@@ -152,7 +152,9 @@ impl Store {
             {
                 let stats = &mut strand.stats.lock();
                 stats.valid_items += 1;
-                if entry.exists() { stats.deleted_items += 1 }
+                if entry.exists() {
+                    stats.deleted_items += 1
+                }
             }
 
             Item::write(strand, key, val)
@@ -197,6 +199,11 @@ impl Store {
 
         let entry = self.index.lock(key);
         if let Some(ptr) = entry.value {
+            self.volume.read(ptr, |strand| {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            });
+
             self.remove_item(key, ptr);
         }
 
