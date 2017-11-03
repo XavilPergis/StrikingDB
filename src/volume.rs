@@ -130,7 +130,10 @@ impl Volume {
                 Read => VolumeOpen::read(&device, options)?,
                 Create | Truncate => VolumeOpen::new(&device, options)?,
             };
-            state_ptr = open.state_ptr;
+
+            if !options.reindex {
+                state_ptr = open.state_ptr;
+            }
 
             if options.mode == Truncate {
                 device.trim(0, device.capacity())?;
