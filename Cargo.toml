@@ -1,6 +1,6 @@
 [package]
 name = "striking-db"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ammon Smith <ammon.i.smith@gmail.com>", "Maxwell Duzen"]
 build = "build.rs"
 
