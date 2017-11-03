@@ -23,7 +23,7 @@ use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
-use serial::Item;
+use serial::item;
 use std::fs::File;
 use strand::Strand;
 use super::device::Device;
@@ -109,7 +109,7 @@ impl Store {
                 stats.valid_items += 1;
             }
 
-            Item::write(strand, key, val)
+            item::write(strand, key, val)
         })?;
 
         entry.value = Some(ptr);
@@ -133,7 +133,7 @@ impl Store {
                 stats.deleted_items += 1;
             }
 
-            Item::write(strand, key, val)
+            item::write(strand, key, val)
         })?;
 
         self.remove_item(key, old_ptr);
@@ -157,7 +157,7 @@ impl Store {
                 }
             }
 
-            Item::write(strand, key, val)
+            item::write(strand, key, val)
         })?;
 
         if entry.exists() {
@@ -212,7 +212,7 @@ impl Store {
 
     // Helpers
     fn lookup_item(&self, strand: &Strand, ptr: FilePointer, val: &mut [u8]) -> Result<usize> {
-        Item::read(strand, ptr, |ctx| ctx.copy_val(val))
+        item::read(strand, ptr, |ctx| ctx.copy_val(val))
     }
 
     fn remove_item(&self, key: &[u8], ptr: FilePointer) {
