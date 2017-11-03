@@ -5,8 +5,7 @@
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
  *
  * striking-db is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as
- * published by the Free Software Foundation, either version 2 of
+ * it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 2 of
  * the License, or (at your option) any later version.
  *
  * striking-db is distributed in the hope that it will be useful,
@@ -63,6 +62,7 @@ mod error;
 mod index;
 mod options;
 mod serial;
+mod stats;
 mod store;
 mod strand;
 mod utils;

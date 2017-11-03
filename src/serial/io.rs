@@ -143,6 +143,7 @@ pub struct StrandWriter<'s, 'd: 's> {
     block: Block,
     status: BufferStatus,
     cursor: u64,
+    pub update_offset: bool,
 }
 
 impl<'s, 'd> StrandWriter<'s, 'd> {
@@ -154,6 +155,7 @@ impl<'s, 'd> StrandWriter<'s, 'd> {
             block: Block::default(),
             status: BufferStatus::Empty,
             cursor: offset,
+            update_offset: true,
         }
     }
 
@@ -205,8 +207,11 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
             let len = len as u64;
             self.status = BufferStatus::Dirty;
             self.cursor += len;
-            self.strand.push_offset(len);
             self.strand.stats.get_mut().buffer_written_bytes += len;
+
+            if self.update_offset {
+                self.strand.push_offset(len);
+            }
         }
 
         // Flush if necessary

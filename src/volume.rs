@@ -28,6 +28,7 @@ use num_cpus;
 use options::{OpenMode, OpenOptions};
 use parking_lot::RwLock;
 use serial::{DatastoreState, VolumeHeader};
+use stats::Stats;
 use std::cmp::{Ordering, min};
 use std::time::Duration;
 use std::u16;
@@ -222,5 +223,19 @@ impl Volume {
                 }
             }
         })
+    }
+
+    pub fn stats(&self) -> Stats {
+        let mut total_stats = Stats::default();
+
+        self.0.rent(|strands| {
+            for ref strand in strands.iter() {
+                let guard = strand.read();
+                let stats = guard.stats.lock();
+                total_stats += stats.clone();
+            }
+        });
+
+        total_stats
     }
 }

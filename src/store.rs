@@ -23,7 +23,8 @@ use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
-use serial::{read_item, write_item};
+use serial::{DatastoreState, read_item, write_item};
+use stats::Stats;
 use std::fs::File;
 use strand::Strand;
 use super::device::Device;
@@ -210,6 +211,17 @@ impl Store {
         Ok(())
     }
 
+    // Stats
+    #[inline]
+    pub fn stats(&self) -> Stats {
+        self.volume.stats()
+    }
+
+    #[inline]
+    pub fn items(&self) -> usize {
+        self.index.count()
+    }
+
     // Helpers
     fn lookup_item(&self, strand: &Strand, ptr: FilePointer, val: &mut [u8]) -> Result<usize> {
         read_item(strand, ptr, |ctx| ctx.copy_val(val))
@@ -220,13 +232,20 @@ impl Store {
         self.deleted.add(ptr);
     }
 
-    // Stats
-    pub fn items(&self) -> usize {
-        self.index.count()
-    }
+    fn write_state(&mut self) -> Result<()> {
+        let index = self.index.get_mut();
+        let deleted = self.deleted.get_mut();
 
-    pub fn deleted(&self) -> usize {
-        self.deleted.count()
+        self.volume.write(|strand| {
+            let state = DatastoreState::new(index, deleted);
+            state.write(strand)
+        })
+    }
+}
+
+impl Drop for Store {
+    fn drop(&mut self) {
+        self.write_state().expect("Writing datastore state failed");
     }
 }
 

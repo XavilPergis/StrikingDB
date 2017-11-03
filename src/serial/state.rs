@@ -25,6 +25,7 @@ use error::Error;
 use self::rentals::DatastoreStateRental;
 use serial_capnp::{self, datastore_state, map};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::io::{Read, Write};
 use strand::Strand;
 use super::deleted::{Deleted, DeletedSet};
@@ -134,7 +135,14 @@ impl DatastoreState {
 
     pub fn write(self, strand: &mut Strand) -> Result<()> {
         let mut writer = StrandWriter::new(strand);
+        writer.update_offset = false;
         serialize_packed::write_message(&mut writer, &*self.0.into_head())?;
         Ok(())
+    }
+}
+
+impl fmt::Display for DatastoreState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "DatastoreState {{ .. }}")
     }
 }

@@ -28,7 +28,8 @@ use std::io::{Read, Write};
 use super::alloc::PageAllocator;
 use super::buffer::Page;
 use super::fake_box::FakeBox;
-use super::strand::{Strand, StrandStats};
+use super::stats::Stats;
+use super::strand::Strand;
 use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
 
 rental! {
@@ -143,7 +144,7 @@ impl fmt::Debug for VolumeHeader {
 pub struct StrandHeader(StrandHeaderRental);
 
 impl StrandHeader {
-    fn _new(id: u16, capacity: u64, offset: u64, stats: &StrandStats) -> Self {
+    fn _new(id: u16, capacity: u64, offset: u64, stats: &Stats) -> Self {
         let message = Builder::new(PageAllocator::new());
         let fbox = unsafe { FakeBox::new(message) };
         let rental = StrandHeaderRental::new(fbox, |message| {
@@ -169,7 +170,7 @@ impl StrandHeader {
     }
 
     pub fn new(id: u16, capacity: u64) -> Self {
-        Self::_new(id, capacity, PAGE_SIZE64, &StrandStats::default())
+        Self::_new(id, capacity, PAGE_SIZE64, &Stats::default())
     }
 
     pub fn from(strand: &mut Strand) -> Self {
@@ -194,7 +195,7 @@ impl StrandHeader {
         let capacity = header.get_capacity();
         let offset = header.get_offset();
 
-        let stats = StrandStats {
+        let stats = Stats {
             read_bytes: header.get_stats_read_bytes(),
             written_bytes: header.get_stats_written_bytes(),
             trimmed_bytes: header.get_stats_trimmed_bytes(),
@@ -229,11 +230,11 @@ impl StrandHeader {
         )
     }
 
-    pub fn get_stats(&self) -> StrandStats {
+    pub fn get_stats(&self) -> Stats {
         self.0.rent(|message| {
             let reader = message.borrow_as_reader();
 
-            StrandStats {
+            Stats {
                 read_bytes: reader.get_stats_read_bytes(),
                 written_bytes: reader.get_stats_written_bytes(),
                 trimmed_bytes: reader.get_stats_trimmed_bytes(),
@@ -257,7 +258,7 @@ impl StrandHeader {
         self.0.rent_mut(|message| message.set_offset(offset))
     }
 
-    pub fn set_stats(&mut self, stats: &StrandStats) {
+    pub fn set_stats(&mut self, stats: &Stats) {
         self.0.rent_mut(|message| {
             message.set_stats_read_bytes(stats.read_bytes);
             message.set_stats_written_bytes(stats.written_bytes);
