@@ -41,14 +41,15 @@ pub struct Store {
 
 impl Store {
     // Create
-    pub fn open(file: File, options: OpenOptions) -> Result<Self> {
+    pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
         let device = Device::open(file)?;
-        let volume = Volume::open(device, &options)?;
+        let (volume, state) = Volume::open(device, options)?;
+        let (index, deleted) = state.extract();
 
         Ok(Store {
-            volume,
-            index: Index::new(),
-            deleted: Deleted::new(),
+            volume: volume,
+            index: index,
+            deleted: deleted,
             cache: ReadCache::new(),
         })
     }

@@ -24,9 +24,11 @@ mod fake_box;
 mod header;
 mod io;
 mod item;
+mod state;
 
 use super::*;
 
 pub use self::header::{StrandHeader, VolumeHeader};
-pub use self::item::{Item, ReadContext};
 pub use self::io::{StrandReader, StrandWriter};
+pub use self::item::{Item, ReadContext};
+pub use self::state::DatastoreState;

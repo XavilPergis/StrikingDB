@@ -19,33 +19,45 @@
  *
  */
 
+use buffer::Page;
+use deleted::Deleted;
 use device::Device;
+use error::Error;
+use index::Index;
 use num_cpus;
 use options::{OpenMode, OpenOptions};
 use parking_lot::RwLock;
+use serial::{DatastoreState, VolumeHeader};
 use std::cmp::{self, Ordering};
 use std::time::Duration;
 use std::u16;
 use strand::Strand;
-use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
+use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
 struct VolumeOpen {
-    strand_count: u16,
-    read_strand: bool,
+    strands: u16,
+    state_ptr: Option<FilePointer>,
+    read_disk: bool,
 }
 
 impl VolumeOpen {
-    fn new(dev: &Device, options: &OpenOptions) -> Self {
+    fn new(dev: &Device, options: &OpenOptions) -> Result<Self> {
         const GB: u64 = 1024 * 1024 * 1024;
 
         let count = match options.strands {
-            Some(x) => x as u64,
+            Some(x) => {
+                if x <= MIN_STRANDS {
+                    return Err(Error::BadArgument("Too few strands were specified."));
+                }
+
+                x as u64
+            },
             None => {
                 let cores = num_cpus::get() as u64;
                 8 * cores * dev.capacity() / GB
-            }
+            },
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
         assert!(
@@ -53,18 +65,23 @@ impl VolumeOpen {
             "Integer not large enough for all these strands"
         );
 
-        VolumeOpen {
-            strand_count: count as u16,
-            read_strand: false,
-        }
+        Ok(VolumeOpen {
+            strands: count as u16,
+            state_ptr: None,
+            read_disk: false,
+        })
     }
 
     fn read(dev: &Device, options: &OpenOptions) -> Result<Self> {
-        let mut buf = [0; PAGE_SIZE];
-        dev.read(0, &mut buf[..])?;
+        let mut page = Page::default();
+        dev.read(0, &mut page[..])?;
 
-        // TODO read meta block
-        unimplemented!();
+        let header = VolumeHeader::read(&page)?;
+        Ok(VolumeOpen {
+            strands: header.get_strands(),
+            state_ptr: header.get_state_ptr(),
+            read_disk: true,
+        })
     }
 }
 
@@ -74,36 +91,56 @@ rental! {
 
         #[rental(debug_borrow)]
         pub struct VolumeRental {
-            dev: Box<Device>,
-            strands: Box<[RwLock<Strand<'dev>>]>,
+            device: Box<Device>,
+            strands: Box<[RwLock<Strand<'device>>]>,
         }
     }
 }
 
 use self::rentals::VolumeRental;
 
+#[derive(Debug, Default)]
+pub struct VolumeState(Option<(Index, Deleted)>);
+
+impl VolumeState {
+    pub fn new(index: Index, deleted: Deleted) -> Self {
+        VolumeState(Some((index, deleted)))
+    }
+
+    pub fn extract(self) -> (Index, Deleted) {
+        match self.0 {
+            Some((idx, del)) => (idx, del),
+            None => (Index::new(), Deleted::new()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Volume(VolumeRental);
 
 impl Volume {
-    pub fn open(dev: Device, options: &OpenOptions) -> Result<Self> {
+    pub fn open(device: Device, options: &OpenOptions) -> Result<(Self, VolumeState)> {
         use rental::TryNewError;
 
-        let rental = VolumeRental::try_new(Box::new(dev), |dev| {
-            let open = match options.mode {
-                OpenMode::Open => VolumeOpen::read(&dev, options)?,
-                OpenMode::Create | OpenMode::Truncate => VolumeOpen::new(&dev, options),
-            };
+        let mut state_ptr = None;
+        let try_rental = VolumeRental::try_new(Box::new(device), |device| {
+            use OpenMode::*;
 
-            if options.mode == OpenMode::Truncate {
-                dev.trim(0, dev.capacity())?;
+            let open = match options.mode {
+                Read => VolumeOpen::read(&device, options)?,
+                Create | Truncate => VolumeOpen::new(&device, options)?,
+            };
+            state_ptr = open.state_ptr;
+
+            if options.mode == Truncate {
+                device.trim(0, device.capacity())?;
             }
 
-            let mut left = dev.capacity();
-            let size = align(dev.capacity() / open.strand_count as u64);
+            let mut left = device.capacity();
+            let size = align(device.capacity() / open.strands as u64);
 
-            let mut strands = Vec::with_capacity(open.strand_count as usize);
-            for i in 0..open.strand_count {
+            let mut strands = Vec::with_capacity(open.strands as usize);
+            for i in 0..open.strands {
                 // The first page is reserved for metadata
                 let off = (i as u64) * size + PAGE_SIZE64;
                 let len = cmp::min(size, left);
@@ -112,17 +149,26 @@ impl Volume {
                 debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
                 left -= len;
-                let strand = Strand::new(&dev, i, off, len, open.read_strand)?;
+                let strand = Strand::new(&device, i, off, len, open.read_disk)?;
                 let lock = RwLock::new(strand);
                 strands.push(lock);
             }
             debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
 
+
             Ok(strands.into_boxed_slice())
         });
 
-        match rental {
-            Ok(rental) => Ok(Volume(rental)),
+        match try_rental {
+            Ok(rental) => {
+                let volume = Volume(rental);
+                let state = match state_ptr {
+                    Some(ptr) => volume.read(ptr, |strand| DatastoreState::read(strand, ptr))?,
+                    None => VolumeState::default(),
+                };
+
+                Ok((volume, state))
+            },
             Err(TryNewError(err, _)) => Err(err),
         }
     }

@@ -24,7 +24,7 @@ use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::thread;
-use super::FilePointer;
+use super::{MAX_KEY_LEN, FilePointer};
 
 type IndexTree = BTreeMap<Box<[u8]>, (FilePointer, bool)>;
 
@@ -82,8 +82,27 @@ impl<'i, 'k> Drop for IndexEntryGuard<'i, 'k> {
 pub struct Index(RwLock<IndexTree>);
 
 impl Index {
+    fn tree_valid(map: &IndexTree) -> bool {
+        for (key, &(_, locked)) in map.iter() {
+            if key.is_empty() || key.len() > MAX_KEY_LEN {
+                return false;
+            }
+
+            if locked {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub fn new() -> Self {
         Index(RwLock::new(BTreeMap::new()))
+    }
+
+    pub fn from(map: IndexTree) -> Self {
+        debug_assert!(Self::tree_valid(&map));
+        Index(RwLock::new(map))
     }
 
     pub fn lock<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntryGuard<'i, 'k> {
@@ -125,5 +144,11 @@ impl Index {
 
     pub fn count(&self) -> usize {
         self.0.read().len()
+    }
+}
+
+impl Default for Index {
+    fn default() -> Self {
+        Self::new()
     }
 }

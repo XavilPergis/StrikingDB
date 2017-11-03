@@ -29,6 +29,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub enum Error {
     FileType,
     Corrupt,
+    BadArgument(&'static str),
     IncompatibleVersion,
     OutOfSpace,
     ItemExists,
@@ -48,6 +49,7 @@ impl error::Error for Error {
             &FileType => "Invalid file type",
             &OutOfSpace => "Volume is out of space",
             &Corrupt => "Volume is corrupt",
+            &BadArgument(desc) => desc,
             &IncompatibleVersion => "Volume is formatted with incompatible version",
             &ItemExists => "Item already exists",
             &ItemNotFound => "Item not found",
@@ -56,7 +58,7 @@ impl error::Error for Error {
             &Unimplemented => "That operation isn't implemented yet",
             &Network => "General network error",
             &Io(Some(ref err)) => err.description(),
-            &Io(None) => "Low level I/O operation failure",
+            &Io(None) => "Low level I/O failure",
         }
     }
 

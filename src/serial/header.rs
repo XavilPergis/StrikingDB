@@ -21,14 +21,14 @@
 
 use capnp::message::{Builder, Reader, ReaderOptions};
 use capnp::serialize_packed;
-use serial_capnp::{strand_header, volume_header};
+use self::rentals::{VolumeHeaderRental, StrandHeaderRental};
+use serial_capnp::{self, strand_header, volume_header};
 use std::io::{Read, Write};
 use super::alloc::PageAllocator;
 use super::buffer::Page;
 use super::fake_box::FakeBox;
-use super::serial_capnp;
 use super::strand::{Strand, StrandStats};
-use super::{PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
+use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
 
 rental! {
     mod rentals {
@@ -48,12 +48,10 @@ rental! {
     }
 }
 
-use self::rentals::{VolumeHeaderRental, StrandHeaderRental};
-
 pub struct VolumeHeader(VolumeHeaderRental);
 
 impl VolumeHeader {
-    pub fn new(strands: u16, state_ptr: Option<u64>) -> Self {
+    pub fn new(strands: u16, state_ptr: Option<FilePointer>) -> Self {
         let message = Builder::new(PageAllocator::new());
         let fbox = unsafe { FakeBox::new(message) };
         let rental = VolumeHeaderRental::new(fbox, |message| {
@@ -90,6 +88,10 @@ impl VolumeHeader {
         }
 
         let strands = header.get_strands();
+        if strands <= MIN_STRANDS {
+            return Err(Error::Corrupt);
+        }
+
         let state_ptr = Self::null(header.get_state_ptr());
 
         Ok(Self::new(strands, state_ptr))
@@ -101,7 +103,7 @@ impl VolumeHeader {
         Ok(())
     }
 
-    fn null(ptr: u64) -> Option<u64> {
+    fn null(ptr: u64) -> Option<FilePointer> {
         match ptr {
             0 => None,
             x => Some(x),
@@ -114,7 +116,7 @@ impl VolumeHeader {
         )
     }
 
-    pub fn get_state_ptr(&self) -> Option<u64> {
+    pub fn get_state_ptr(&self) -> Option<FilePointer> {
         self.0.rent(|message| {
             Self::null(message.borrow_as_reader().get_state_ptr())
         })
@@ -124,7 +126,7 @@ impl VolumeHeader {
         self.0.rent_mut(|message| message.set_strands(strands));
     }
 
-    pub fn set_state_ptr(&mut self, state_ptr: Option<u64>) {
+    pub fn set_state_ptr(&mut self, state_ptr: Option<FilePointer>) {
         self.0.rent_mut(|message| {
             message.set_state_ptr(state_ptr.unwrap_or(0))
         });

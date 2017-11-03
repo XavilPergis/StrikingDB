@@ -21,10 +21,11 @@
 @0x839d0a2a39d2f712;
 
 using Magic = UInt64;
-using DiskPointer = UInt64;
+using FilePointer = UInt64;
 
-const volumeMagic :Magic = 0x864d26e37a418b16;
+const volumeMagic :Magic = 0xe64d26e37a418b16;
 const strandMagic :Magic = 0x1a456bf69dbf40c8;
+const stateMagic  :Magic = 0xfee968216bc3cbd5;
 
 # The header present on the first page of any
 # volume. The values here are checked to ensure
@@ -51,7 +52,7 @@ struct VolumeHeader {
     #
     # If this value is 0 (i.e. null) then the indexer
     # and deleted item tree will be recreated from disk.
-    statePtr @5 :DiskPointer;
+    statePtr @5 :FilePointer;
 }
 
 # The header present on the first page of every
@@ -112,14 +113,15 @@ struct Item {
 # be recreated in memory the next
 # time the datastore is opened.
 struct DatastoreState {
-    index @0 :Map(Data, DiskPointer2);
-    deleted @1 :List(DiskPointer2);
+    signature @0 :Magic;
+    index @1 :Map(Data, FilePointer2);
+    deleted @2 :List(FilePointer2);
 }
 
 # Cap'n proto requires generic parameters
 # to be pointers
-struct DiskPointer2 {
-    pointer @0 :DiskPointer;
+struct FilePointer2 {
+    pointer @0 :FilePointer;
 }
 
 # The Cap'n Proto form of a HashMap

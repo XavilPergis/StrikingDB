@@ -76,9 +76,12 @@ pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
 
 /* Constants */
+pub const VERSION_STR: &'static str = build::PKG_VERSION;
+
 pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
 pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
-pub const VERSION_STR: &'static str = build::PKG_VERSION;
+
+pub const MIN_STRANDS: u16 = 2;
 
 const PAGE_SIZE: usize = 4 * 1024;
 const TRIM_SIZE: usize = 256 * 1024;
