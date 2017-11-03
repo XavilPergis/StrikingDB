@@ -21,7 +21,7 @@
 
 use capnp::message::{Builder, HeapAllocator, Reader, ReaderOptions};
 use capnp::serialize_packed;
-use self::rentals::WriteItemRental;
+use self::rentals::{ReadItemRental, WriteItemRental};
 use std::cmp::min;
 use std::io::Write;
 use super::fake_box::FakeBox;
@@ -72,19 +72,50 @@ rental! {
     mod rentals {
         use super::*;
 
-        /*
         #[rental]
-        pub struct ReadItemRental {
-            message: FakeBox<Reader>,
+        pub struct ReadItemRental<'s, 'd: 's> {
+            strand: &'s Strand<'d>,
+            reader: FakeBox<StrandReader<'strand>>,
+            message: FakeBox<Reader<'reader>>,
             item: item::Reader<'message>,
         }
-        */
 
         #[rental_mut]
         pub struct WriteItemRental {
             message: FakeBox<Builder<HeapAllocator>>,
             item: item::Builder<'message>,
         }
+    }
+}
+
+/*
+            pub fn read<F, R>(strand: &Strand, ptr: FilePointer, func: F) -> Result<R>
+            where
+                F: FnOnce(ReadContext) -> Result<R>,
+            {
+                let mut strand_reader = StrandReader::new(strand, ptr);
+                let msg_reader = serialize_packed::read_message(&mut strand_reader, ReaderOptions::new())?;
+                let item = msg_reader.get_root::<item::Reader>()?;
+                let ctx = ReadContext(item);
+
+                // Run callback and return
+                Ok(func(ctx)?)
+            }
+            */
+
+#[derive(Clone)]
+pub struct ReadItem<'s, 'd: 's>(ReadItemRental<'s, 'd>);
+
+impl<'s, 'd: 's> ReadItem<'s, 'd> {
+    pub fn new(strand: &'s Strand<'d>, ptr: FilePointer) -> Result<Self> {
+        let mut reader = StrandReader::new(strand, ptr);
+        let message = serialize_packed::read_message(&mut reader, ReaderOptions::new())?;
+        let fbox = unsafe { FakeBox::new(message) };
+        let rental = ReadItemRental::new(fbox, |message| {
+            message.get_root::<item::Reader>()
+        });
+
+        ReadItem(rental)
     }
 }
 
@@ -137,22 +168,5 @@ impl Item {
 
         // Run callback and return
         Ok(func(ctx)?)
-    }
-
-    pub fn write(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePointer> {
-        let mut message = Builder::new_default();
-        {
-            let mut item = message.init_root::<item::Builder>();
-            item.set_key(key);
-            item.set_value(val);
-        }
-
-        // Write data
-        let mut strand_writer = StrandWriter::new(strand);
-        serialize_packed::write_message(&mut strand_writer, &message)?;
-        strand_writer.write_metadata()?;
-        strand_writer.flush()?;
-
-        Ok(strand_writer.get_pointer())
     }
 }
