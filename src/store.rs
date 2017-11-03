@@ -23,7 +23,8 @@ use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
-use serial::Item;
+use serial::Item; //
+use serial::WriteItem;
 use std::fs::File;
 use strand::Strand;
 use super::device::Device;
@@ -109,7 +110,8 @@ impl Store {
                 stats.valid_items += 1;
             }
 
-            Item::write(strand, key, val)
+            let item = WriteItem::new(strand, key, val);
+            item.write()
         })?;
 
         entry.value = Some(ptr);
@@ -133,7 +135,8 @@ impl Store {
                 stats.deleted_items += 1;
             }
 
-            Item::write(strand, key, val)
+            let item = WriteItem::new(strand, key, val);
+            item.write()
         })?;
 
         self.remove_item(key, old_ptr);
@@ -157,7 +160,8 @@ impl Store {
                 }
             }
 
-            Item::write(strand, key, val)
+            let item = WriteItem::new(strand, key, val);
+            item.write()
         })?;
 
         if entry.exists() {
