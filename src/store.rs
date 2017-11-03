@@ -27,7 +27,7 @@ use serial::{DatastoreState, read_item, write_item};
 use stats::Stats;
 use std::fs::File;
 use strand::Strand;
-use super::device::Device;
+use super::device::{Device, Ssd, Memory};
 use super::error::Error;
 use super::volume::Volume;
 use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
@@ -43,8 +43,8 @@ pub struct Store {
 impl Store {
     // Create
     pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
-        let device = Device::open(file)?;
-        let (volume, state) = Volume::open(device, options)?;
+        let ssd = Ssd::open(file)?;
+        let (volume, state) = Volume::open(ssd, options)?;
         let (index, deleted) = state.extract();
 
         Ok(Store {
@@ -53,6 +53,18 @@ impl Store {
             deleted: deleted,
             cache: ReadCache::new(),
         })
+    }
+
+    pub fn memory(bytes: usize, options: &OpenOptions) -> Self {
+        let memory = Memory::new(bytes);
+        let (volume, _) = Volume::open(memory, options)?;
+
+        Store {
+            volume: volume,
+            index: Index::new(),
+            deleted: Deleted::new(),
+            cache: ReadCache::new(),
+        }
     }
 
     // Helper methods

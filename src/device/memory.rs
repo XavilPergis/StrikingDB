@@ -1,5 +1,5 @@
 /*
- * device/windows.rs
+ * device/memory.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,14 +19,19 @@
  *
  */
 
-// TODO
-
-use super::Device;
+use super::{Device, Result};
 
 #[derive(Debug)]
-pub struct Ssd;
+pub struct Memory(Box<[u8]>);
 
-impl Device for Ssd {
+impl Memory {
+    pub fn new(bytes: usize) -> Self {
+        let buffer = Vec::with_capacity(bytes).into_boxed_slice();
+        Memory(buffer)
+    }
+}
+
+impl Device for Memory {
     fn capacity(&self) -> u64 {
         unimplemented!();
     }

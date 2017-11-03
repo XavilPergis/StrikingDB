@@ -23,7 +23,8 @@ use nix::libc;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::*;
-use super::{PAGE_SIZE64, TRIM_SIZE64, Error, Result};
+use super::{PAGE_SIZE64, TRIM_SIZE64, Device, Error, Result};
+use super::{check_read, check_write, check_trim};
 
 mod ioctl {
     const BLK: u8 = 0x12;
@@ -31,61 +32,60 @@ mod ioctl {
     ioctl!(write_buf blkdiscard with BLK, 119; [u64; 2]);
 }
 
-fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
-    let metadata = fh.metadata()?;
-    let ftype = metadata.file_type();
-
-    if ftype.is_block_device() {
-        let mut capacity = 0;
-        let result = unsafe { ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity) };
-
-        match result {
-            Ok(_) => Ok((capacity, true)),
-            Err(_) => Err(Error::Io(None)),
-        }
-    } else if ftype.is_file() {
-        match fh.seek(SeekFrom::End(0)) {
-            Ok(capacity) => Ok((capacity, false)),
-            Err(e) => Err(Error::Io(Some(e))),
-        }
-    } else {
-        Err(Error::FileType)
-    }
-}
-
 #[derive(Debug)]
-pub struct Device {
+pub struct Ssd {
     fh: File,
     capacity: u64,
     block: bool,
 }
 
-impl Device {
-    pub fn open(mut fh: File) -> Result<Self> {
-        let (capacity, block) = get_metadata(&mut fh)?;
+impl Ssd {
+    fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
+        let metadata = fh.metadata()?;
+        let ftype = metadata.file_type();
 
-        Ok(Device {
+        if ftype.is_block_device() {
+            let mut capacity = 0;
+            let result = unsafe { ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity) };
+
+            match result {
+                Ok(_) => Ok((capacity, true)),
+                Err(_) => Err(Error::Io(None)),
+            }
+        } else if ftype.is_file() {
+            match fh.seek(SeekFrom::End(0)) {
+                Ok(capacity) => Ok((capacity, false)),
+                Err(e) => Err(Error::Io(Some(e))),
+            }
+        } else {
+            Err(Error::FileType)
+        }
+    }
+
+    pub fn open(mut fh: File) -> Result<Self> {
+        let (capacity, block) = Self::get_metadata(&mut fh)?;
+
+        Ok(Ssd {
             fh: fh,
             capacity: capacity,
             block: block,
         })
     }
+}
 
+impl Device for Ssd {
     #[inline]
-    pub fn capacity(&self) -> u64 {
+    fn capacity(&self) -> u64 {
         self.capacity
     }
 
     #[inline]
-    pub fn block(&self) -> bool {
+    fn block(&self) -> bool {
         self.block
     }
 
-    pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
-        let len = buf.len() as u64;
-        assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
-        assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
-        assert!(off + len < self.capacity, "Read is out of bounds");
+    fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
+        check_read(self, off, buf);
 
         match self.fh.read_at(buf, off) {
             Ok(read) => {
@@ -96,11 +96,8 @@ impl Device {
         }
     }
 
-    pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
-        let len = buf.len() as u64;
-        assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
-        assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
-        assert!(off + len < self.capacity, "Write is out of bounds");
+    fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
+        check_write(self, off, buf);
 
         match self.fh.write_at(buf, off) {
             Ok(written) => {
@@ -111,10 +108,8 @@ impl Device {
         }
     }
 
-    pub fn trim(&self, off: u64, len: u64) -> Result<()> {
-        assert_eq!(off % TRIM_SIZE64, 0, "Offset not a multiple of the trim size");
-        assert_eq!(len % TRIM_SIZE64, 0, "Length not a multiple of the trim size");
-        assert!(off + len < self.capacity, "Trim is out of bounds");
+    fn trim(&self, off: u64, len: u64) -> Result<()> {
+        check_trim(self, off, len);
 
         if self.block {
             // TODO test

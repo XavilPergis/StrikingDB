@@ -120,7 +120,7 @@ impl VolumeState {
 pub struct Volume(VolumeRental);
 
 impl Volume {
-    pub fn open(device: Device, options: &OpenOptions) -> Result<(Self, VolumeState)> {
+    pub fn open<D: Device>(device: D, options: &OpenOptions) -> Result<(Self, VolumeState)> {
         use rental::TryNewError;
 
         let mut state_ptr = None;
