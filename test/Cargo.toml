@@ -1,0 +1,7 @@
+[package]
+name = "striking-db-test"
+version = "0.0.1"
+authors = ["Ammon Smith <ammon.i.smith@gmail.com>", "Maxwell Duzen"]
+
+[dependencies]
+striking-db = { path = ".." }
