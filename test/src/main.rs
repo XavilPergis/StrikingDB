@@ -1,6 +1,5 @@
 extern crate striking_db;
 
-use std::fs::File;
 use std::{env, process};
 use striking_db::{OpenOptions, Store};
 
@@ -12,12 +11,11 @@ fn main() {
     }
 
     let path = &args[1];
-    let file = File::open(path).expect("Unable to open file");
     let options = {
         let mut options = OpenOptions::new();
         options.truncate();
         options
     };
 
-    let store = Store::open(file, &options).expect("Opening datastore failed");
+    let store = Store::open(path, &options).expect("Opening datastore failed");
 }

@@ -133,8 +133,6 @@ impl Device for Ssd {
                 )
             };
 
-            use nix::errno::errno;
-            println!("fd: {}, ret: {}, errno: {}", self.file.as_raw_fd(), ret, errno());
             match ret {
                 0 => Ok(()),
                 _ => Err(Error::Io(None)),

@@ -54,6 +54,7 @@ impl<'d> Strand<'d> {
             0,
             "Capacity is not a multiple of the page size"
         );
+        println!("start: {}, capacity: {}, dev_cap: {}", start, capacity, device.capacity());
         assert!(
             start + capacity >= device.capacity(),
             "Strand extends off the boundary of the device"

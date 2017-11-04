@@ -58,7 +58,7 @@ impl VolumeOpen {
             }
             None => {
                 let cores = num_cpus::get() as u64;
-                8 * cores * dev.capacity() / GB
+                cores * dev.capacity() / GB
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
