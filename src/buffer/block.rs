@@ -20,8 +20,9 @@
  */
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
-use super::TRIM_SIZE;
+use super::{TRIM_SIZE, ByteArray};
 
 #[derive(Clone)]
 pub struct Block([u8; TRIM_SIZE]);
@@ -52,8 +53,16 @@ impl AsRef<[u8]> for Block {
     }
 }
 
+impl Hash for Block {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.0[..]);
+    }
+}
+
 impl fmt::Debug for Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Block: {:?}..", &self.0[..16])
     }
 }
+
+impl ByteArray for Block {}

@@ -21,6 +21,11 @@
 
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
-pub trait ByteArray: Default + Debug + Clone + Hash + DerefMut<Target = [u8]> {}
+pub trait ByteArray
+where
+    Self: DerefMut<Target = [u8]>,
+    Self: Default + Debug + Clone + Hash
+{
+}

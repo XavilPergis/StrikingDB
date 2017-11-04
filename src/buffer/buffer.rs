@@ -19,14 +19,14 @@
  *
  */
 
+use std::cmp::min;
 use std::ops::{Deref, DerefMut};
 use super::{ByteArray, BufferStatus};
 
 #[derive(Debug, Clone, Hash)]
 pub struct Buffer<B: ByteArray> {
-    bytes: B,
-    status: BufferStatus,
-    cursor: u64,
+    pub bytes: B,
+    pub status: BufferStatus,
 }
 
 impl<B: ByteArray> Buffer<B> {
@@ -34,8 +34,11 @@ impl<B: ByteArray> Buffer<B> {
         Buffer {
             bytes: B::default(),
             status: BufferStatus::Empty,
-            cursor: 0,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.status = BufferStatus::Empty;
     }
 }
 

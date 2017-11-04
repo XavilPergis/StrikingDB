@@ -22,7 +22,7 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
-use super::PAGE_SIZE;
+use super::{PAGE_SIZE, ByteArray};
 
 #[derive(Clone)]
 pub struct Page([u8; PAGE_SIZE]);
@@ -64,3 +64,5 @@ impl fmt::Debug for Page {
         write!(f, "Page: {:?}..", &self.0[..16])
     }
 }
+
+impl ByteArray for Page {}
