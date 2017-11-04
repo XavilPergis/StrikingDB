@@ -188,12 +188,13 @@ impl<'a> Volume<'a> {
             // Search for the strand that has this file pointer
             let result = strands.binary_search_by(|strand| {
                 let guard = strand.read();
+
                 if ptr < guard.start() {
-                    Ordering::Less
-                } else if ptr < guard.end() {
+                    Ordering::Greater
+                } else if ptr <= guard.end() {
                     Ordering::Equal
                 } else {
-                    Ordering::Greater
+                    Ordering::Less
                 }
             });
 

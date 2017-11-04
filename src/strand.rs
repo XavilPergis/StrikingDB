@@ -125,7 +125,7 @@ impl<'d> Strand<'d> {
 
     #[inline]
     pub fn contains_ptr(&self, ptr: FilePointer) -> bool {
-        self.start <= ptr && ptr <= self.start + self.capacity
+        self.start <= ptr && ptr <= self.end()
     }
 
     pub fn write_metadata(&mut self) -> Result<()> {
