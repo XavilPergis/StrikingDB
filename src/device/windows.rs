@@ -141,13 +141,9 @@ impl Device for Ssd {
     fn trim(&self, off: u64, len: u64) -> Result<()> {
         check_trim(self, off, len);
 
-        let overlapped = OVERLAPPED {
-            Internal: 0,
-            InternalHigh: 0,
-            Offset: off as u32,
-            OffsetHigh: (off >> 32) as u32,
-            hEvent: ptr::null_mut(),
-        };
-        unimplemented!();
+        // I can't figure out how to issue TRIM commands
+        // using the winapi.
+
+        Ok(())
     }
 }
