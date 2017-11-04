@@ -28,7 +28,7 @@ pub struct Memory(RwLock<Box<[u8]>>, u64);
 
 impl Memory {
     pub fn new(bytes: usize) -> Self {
-        let buffer = Vec::with_capacity(bytes).into_boxed_slice();
+        let buffer = vec![0; bytes].into_boxed_slice();
         Memory(RwLock::new(buffer), bytes as u64)
     }
 }
