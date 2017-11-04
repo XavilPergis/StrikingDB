@@ -36,10 +36,6 @@ impl ReadCache {
         ReadCache(RwLock::new(LruCache::with_capacity(items)))
     }
 
-    pub fn key_exists(&self, key: &[u8]) -> bool {
-        self.0.read().contains_key(key)
-    }
-
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Option<Box<[u8]>> {
         self.0.write().insert(
             Vec::from(key).into_boxed_slice(),

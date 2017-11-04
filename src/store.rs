@@ -228,14 +228,14 @@ impl<'a> Store<'a> {
         self.volume.stats()
     }
 
-    #[inline]
-    pub fn items(&self) -> usize {
-        self.index.count()
-    }
-
     // Helpers
-    fn lookup_item(&self, strand: &Strand, ptr: FilePointer, val: &mut [u8]) -> Result<usize> {
-        read_item(strand, ptr, |ctx| ctx.copy_val(val))
+    fn lookup_item(&self, strand: &Strand, ptr: FilePointer, buf: &mut [u8]) -> Result<usize> {
+        read_item(strand, ptr, |ctx| {
+            let key = ctx.key()?;
+            let val = ctx.val()?;
+            self.cache.insert(key, val);
+            ctx.copy_val(buf)
+        })
     }
 
     fn remove_item(&self, key: &[u8], ptr: FilePointer) {
