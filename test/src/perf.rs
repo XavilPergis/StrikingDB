@@ -44,6 +44,31 @@ fn inserts(store: &Store, id: u32) {
     }
 }
 
+fn seq_reads(store: &Store, id: u32) {
+    let mut key = Vec::new();
+    let mut val = [0; 16];
+
+    for i in 0..OPERATIONS {
+        key.clear();
+
+        write!(&mut key, "key_{}_{}", id, i).unwrap();
+        store.lookup(key.as_slice(), &mut val[..]).expect("Sequential read failed!");
+    }
+}
+
+fn rand_reads(store: &Store, id: u32) {
+    let mut rng = StdRng::new().expect("Creating RNG failed");
+    let mut key = Vec::new();
+    let mut val = [0; 16];
+
+    for _ in 0..OPERATIONS {
+        key.clear();
+
+        write!(&mut key, "key_{}_{}", id, rng.next_u32() % OPERATIONS).unwrap();
+        store.lookup(key.as_slice(), &mut val[..]).expect("Random read failed!");
+    }
+}
+
 fn updates(store: &Store, id: u32) {
     let mut key = Vec::new();
 
@@ -121,6 +146,32 @@ pub fn run(store: Store) {
 
             for i in 0..cpus {
                 scope.execute(move || inserts(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
+
+    {
+        print!("Running sequential reads... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
+
+            for i in 0..cpus {
+                scope.execute(move || seq_reads(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
+
+    {
+        print!("Running random reads... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
+
+            for i in 0..cpus {
+                scope.execute(move || rand_reads(store, i));
             }
         });
         throughput(start.elapsed());
