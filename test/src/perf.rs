@@ -27,6 +27,7 @@ use std::time::{Duration, Instant};
 use striking_db::Store;
 
 const OPERATIONS: u32 = 50_000;
+const WRITE_RATIO: f32 = 0.30;
 
 fn inserts(store: &Store, id: u32) {
     let mut rng = StdRng::new().expect("Creating RNG failed");
@@ -66,6 +67,25 @@ fn puts(store: &Store, _id: u32) {
         write!(&mut key, "key_{}", rng.next_u64() % 512).unwrap();
         write!(&mut val, "val_{}_{}", i, rng.next_u64()).unwrap();
         store.put(key.as_slice(), val.as_slice()).expect("Put failed!");
+    }
+}
+
+fn mixed(store: &Store, id: u32) {
+    let mut rng = StdRng::new().expect("Creating RNG failed");
+    let mut key = Vec::new();
+    let mut val = Vec::new();
+
+    for i in 0..OPERATIONS {
+        key.clear();
+        write!(&mut key, "key_{}_{}", id, i).unwrap();
+
+        if rng.next_f32() < WRITE_RATIO {
+            val.clear();
+            write!(&mut val, "{}_{}", i, rng.next_u64()).unwrap();
+            store.put(key.as_slice(), val.as_slice()).expect("Mixed put failed!");
+        } else {
+            store.lookup(key.as_slice(), val.as_mut_slice()).expect("Mixed lookup failed!");
+        }
     }
 }
 
@@ -127,6 +147,19 @@ pub fn run(store: Store) {
 
             for i in 0..cpus {
                 scope.execute(move || puts(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
+
+    {
+        print!("Running mixed ops... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
+
+            for i in 0..cpus {
+                scope.execute(move || mixed(store, i));
             }
         });
         throughput(start.elapsed());
