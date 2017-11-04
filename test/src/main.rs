@@ -1,6 +1,7 @@
 extern crate striking_db;
 
 use std::{env, process};
+use std::io::Write;
 use striking_db::{OpenOptions, Store};
 
 fn main() {
@@ -18,6 +19,7 @@ fn main() {
     };
 
     let store = Store::open(path, &options).expect("Opening datastore failed");
+    let mut key = [0; 16];
     let mut value = [0; 16];
 
     store.insert(b"abc", b"000").expect("1 - Insertion failed");
@@ -50,5 +52,12 @@ fn main() {
         assert_eq!(b"ABCDEF", &value[..len]);
 
         store.lookup(b"def", &mut value[..]).expect_err("3 - Lookup succeeded");
+    }
+
+    // "Performance test"
+    for i in 0..10000 {
+        write!(&mut key[..], "key_{}", i).unwrap();
+        write!(&mut value[..], "val_{}", i).unwrap();
+        store.insert(&key[..], &value[..]).expect("Loop insertion failed");
     }
 }
