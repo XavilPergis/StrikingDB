@@ -20,9 +20,11 @@
  */
 
 use std::fs::File;
-use std::{io, mem};
+use std::os::windows::fs::FileExt;
 use std::os::windows::prelude::*;
+use std::{io, mem, ptr};
 use super::{Device, Error, Result};
+use super::{check_read, check_write, check_trim};
 use winapi::minwindef::*;
 use winapi::{kernel32, winioctl, winnt};
 
@@ -109,18 +111,43 @@ impl Device for Ssd {
 
     #[inline]
     fn block_device(&self) -> bool {
-        unimplemented!();
+        self.block
     }
 
     fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
-        unimplemented!();
+        check_read(self, off, buf);
+
+        match self.file.seek_read(buf, off) {
+            Ok(read) => {
+                assert_eq!(read, buf.len(), "Did not read full buffer");
+                Ok(())
+            },
+            Err(e) => Err(Error::Io(Some(e))),
+        }
     }
 
     fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
-        unimplemented!();
+        check_write(self, off, buf);
+
+        match self.file.seek_write(buf, off) {
+            Ok(written) => {
+                assert_eq!(written, buf.len(), "Did not write full buffer");
+                Ok(())
+            },
+            Err(e) => Err(Error::Io(Some(e))),
+        }
     }
 
     fn trim(&self, off: u64, len: u64) -> Result<()> {
+        check_trim(self, off, len);
+
+        let overlapped = OVERLAPPED {
+            Internal: 0,
+            InternalHigh: 0,
+            Offset: off as u32,
+            OffsetHigh: (off >> 32) as u32,
+            hEvent: ptr::null_mut(),
+        };
         unimplemented!();
     }
 }
