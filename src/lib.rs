@@ -18,12 +18,6 @@
  *
  */
 
-// FIXME: remove in final version, this is just here so
-// `chargo check`ing doesn't flood the terminal with warnings
-// about unused code
-#![allow(dead_code)]
-#![allow(unused)]
-
 extern crate capnp;
 
 #[macro_use]
@@ -52,10 +46,12 @@ cfg_if! {
 
 /* Generated sources */
 mod build {
+    #![allow(unused)]
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 mod serial_capnp {
+    #![allow(unused)]
     include!(concat!(env!("OUT_DIR"), "/serial_capnp.rs"));
 }
 

@@ -19,17 +19,16 @@
  *
  */
 
-use capnp::message::{Builder, Reader, ReaderOptions};
+use capnp::message::{Builder, ReaderOptions};
 use capnp::serialize_packed;
 use self::rentals::{VolumeHeaderRental, StrandHeaderRental};
 use serial_capnp::{self, strand_header, volume_header};
 use std::fmt;
-use std::io::{Read, Write};
 use super::alloc::PageAllocator;
 use super::buffer::Page;
 use super::stats::Stats;
 use super::strand::Strand;
-use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
+use super::{MIN_STRANDS, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
 
 rental! {
     mod rentals {
@@ -97,6 +96,7 @@ impl VolumeHeader {
         Ok(Self::new(strands, state_ptr))
     }
 
+    #[allow(unused)]
     pub fn write(self, page: &mut Page) -> Result<()> {
         let mut slice = &mut page[..];
         serialize_packed::write_message(&mut slice, &*self.0.into_head())?;
@@ -122,10 +122,12 @@ impl VolumeHeader {
         })
     }
 
+    #[allow(unused)]
     pub fn set_strands(&mut self, strands: u16) {
         self.0.rent_mut(|message| message.set_strands(strands));
     }
 
+    #[allow(unused)]
     pub fn set_state_ptr(&mut self, state_ptr: Option<FilePointer>) {
         self.0.rent_mut(|message| {
             message.set_state_ptr(state_ptr.unwrap_or(0))
@@ -211,10 +213,12 @@ impl StrandHeader {
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn get_id(&self) -> u16 {
         self.0.rent(|message| message.borrow_as_reader().get_id())
     }
 
+    #[allow(unused)]
     pub fn get_capacity(&self) -> u64 {
         self.0.rent(
             |message| message.borrow_as_reader().get_capacity(),
@@ -227,6 +231,7 @@ impl StrandHeader {
         )
     }
 
+    #[allow(unused)]
     pub fn get_stats(&self) -> Stats {
         self.0.rent(|message| {
             let reader = message.borrow_as_reader();
@@ -243,18 +248,22 @@ impl StrandHeader {
         })
     }
 
+    #[allow(unused)]
     pub fn set_id(&mut self, id: u16) {
         self.0.rent_mut(|message| message.set_id(id))
     }
 
+    #[allow(unused)]
     pub fn set_capacity(&mut self, capacity: u64) {
         self.0.rent_mut(|message| message.set_capacity(capacity))
     }
 
+    #[allow(unused)]
     pub fn set_offset(&mut self, offset: u64) {
         self.0.rent_mut(|message| message.set_offset(offset))
     }
 
+    #[allow(unused)]
     pub fn set_stats(&mut self, stats: &Stats) {
         self.0.rent_mut(|message| {
             message.set_stats_read_bytes(stats.read_bytes);

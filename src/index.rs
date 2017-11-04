@@ -22,7 +22,6 @@
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
-use std::sync::Arc;
 use std::thread;
 use super::{MAX_KEY_LEN, FilePointer};
 
@@ -48,6 +47,7 @@ impl<'i, 'k> IndexEntryGuard<'i, 'k> {
     }
 
     #[inline]
+    #[allow(unused)]
     pub fn key(&self) -> &[u8] {
         self.key
     }
@@ -64,7 +64,7 @@ impl<'i, 'k> Drop for IndexEntryGuard<'i, 'k> {
         let mut map = index.write();
 
         {
-            let mut tuple = map.get_mut(self.key).expect("Locked entry is now empty");
+            let tuple = map.get_mut(self.key).expect("Locked entry is now empty");
             let (ref mut ptr, ref mut locked) = *tuple;
 
             if let Some(new_ptr) = self.value {
@@ -124,7 +124,7 @@ impl Index {
         // None case, but the borrow checker thinks
         // we already have a mutable reference to
         // "map" because of get_mut().
-        if let Some(mut tuple) = map.get_mut(key) {
+        if let Some(tuple) = map.get_mut(key) {
             let (ptr, ref mut locked) = *tuple;
             if *locked {
                 return None;
@@ -140,10 +140,6 @@ impl Index {
         }
 
         Some(IndexEntryGuard::new(&self.0, key.clone(), value))
-    }
-
-    pub fn count(&self) -> usize {
-        self.0.read().len()
     }
 
     pub fn get_mut(&mut self) -> &mut IndexTree {

@@ -19,14 +19,12 @@
  *
  */
 
-use capnp::message::{Builder, HeapAllocator, Reader, ReaderOptions};
+use capnp::message::{Builder, HeapAllocator, ReaderOptions};
 use capnp::serialize_packed;
 use error::Error;
 use self::rentals::DatastoreStateRental;
-use serial_capnp::{self, datastore_state, map};
-use std::collections::{BTreeMap, BTreeSet};
+use serial_capnp::{self, datastore_state};
 use std::fmt;
-use std::io::{Read, Write};
 use strand::Strand;
 use super::deleted::{Deleted, DeletedSet};
 use super::index::{Index, IndexTree};
@@ -48,20 +46,22 @@ rental! {
 pub struct DatastoreState(DatastoreStateRental);
 
 impl DatastoreState {
-    pub fn new(index: &IndexTree, deleted: &DeletedSet) -> Self {
+    pub fn new(index: &IndexTree, deleted: &DeletedSet) -> Result<Self> {
+        use rental::TryNewError;
+
         let message = Builder::new_default();
-        let rental = DatastoreStateRental::new(Box::new(message), |message| {
+        let try_rental = DatastoreStateRental::try_new(Box::new(message), |message| {
             let mut state = message.init_root::<datastore_state::Builder>();
 
             state.set_signature(serial_capnp::STATE_MAGIC);
 
             {
-                let mut map = state.borrow().init_index();
+                let map = state.borrow().init_index();
                 let mut list = map.init_entries(index.len() as u32);
 
                 for (i, (key, &(ptr, _))) in index.iter().enumerate() {
                     let mut entry = list.borrow().get(i as u32);
-                    entry.set_key(&**key);
+                    entry.set_key(&**key)?;
                     entry.init_value().set_pointer(ptr);
                 }
             }
@@ -75,10 +75,13 @@ impl DatastoreState {
                 }
             }
 
-            state
+            Ok(state)
         });
 
-        DatastoreState(rental)
+        match try_rental {
+            Ok(rental) => Ok(DatastoreState(rental)),
+            Err(TryNewError(err, _)) => Err(err),
+        }
     }
 
     pub fn read(strand: &Strand, ptr: FilePointer) -> Result<VolumeState> {

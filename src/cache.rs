@@ -60,6 +60,7 @@ impl ReadCache {
         self.0.write().remove(key)
     }
 
+    #[allow(unused)]
     pub fn clear(&self) {
         self.0.write().clear();
     }

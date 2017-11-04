@@ -27,7 +27,7 @@ use serial::{DatastoreState, read_item, write_item};
 use stats::Stats;
 use std::fs::File;
 use strand::Strand;
-use super::device::{Device, Ssd, Memory};
+use super::device::{Ssd, Memory};
 use super::error::Error;
 use super::volume::Volume;
 use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
@@ -248,7 +248,7 @@ impl<'a> Store<'a> {
         let deleted = self.deleted.get_mut();
 
         self.volume.write(|strand| {
-            let state = DatastoreState::new(index, deleted);
+            let state = DatastoreState::new(index, deleted)?;
             state.write(strand)
         })
     }

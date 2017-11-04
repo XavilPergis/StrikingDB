@@ -25,7 +25,7 @@ use device::Device;
 use error::Error;
 use index::Index;
 use num_cpus;
-use options::{OpenMode, OpenOptions};
+use options::OpenOptions;
 use parking_lot::RwLock;
 use self::rentals::VolumeRental;
 use serial::{DatastoreState, VolumeHeader};
@@ -34,7 +34,7 @@ use std::cmp::{Ordering, min};
 use std::time::Duration;
 use std::u16;
 use strand::Strand;
-use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
+use super::{MIN_STRANDS, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
@@ -74,7 +74,7 @@ impl VolumeOpen {
         })
     }
 
-    fn read(dev: &Device, options: &OpenOptions) -> Result<Self> {
+    fn read(dev: &Device) -> Result<Self> {
         let mut page = Page::default();
         dev.read(0, &mut page[..])?;
 
@@ -128,8 +128,8 @@ impl<'a> Volume<'a> {
 
             // Collect options
             let open = match options.mode {
-                Read => VolumeOpen::read(device, options)?,
                 Create | Truncate => VolumeOpen::new(device, options)?,
+                Read => VolumeOpen::read(device)?,
             };
 
             if !options.reindex {

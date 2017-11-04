@@ -42,10 +42,6 @@ impl Deleted {
         assert!(!exists, "Deleted item already tracked");
     }
 
-    pub fn count(&self) -> usize {
-        self.0.read().len()
-    }
-
     pub fn get_mut(&mut self) -> &mut DeletedSet {
         self.0.get_mut()
     }
