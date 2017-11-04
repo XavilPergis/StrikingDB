@@ -21,19 +21,12 @@
 
 use std::cmp::min;
 use std::io::{self, BufRead, Read, Write};
-use super::buffer::{Block, Page};
+use super::buffer::{Block, Buffer, BufferStatus, Page};
 use super::error::Error;
 use super::header::StrandHeader;
 use super::strand::Strand;
 use super::utils::{align, block_align};
 use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, FilePointer};
-
-#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
-enum BufferStatus {
-    Clean,
-    Dirty,
-    Empty,
-}
 
 fn to_io_error(err: Error) -> io::Error {
     use Error::Io;
@@ -48,8 +41,7 @@ fn to_io_error(err: Error) -> io::Error {
 #[derive(Debug, Clone)]
 pub struct StrandReader<'s, 'd: 's> {
     strand: &'s Strand<'d>,
-    page: Page,
-    status: BufferStatus,
+    buffer: Box<Buffer<Page>>,
     cursor: u64,
 }
 
@@ -62,8 +54,7 @@ impl<'s, 'd> StrandReader<'s, 'd> {
 
         StrandReader {
             strand: strand,
-            page: Page::default(),
-            status: BufferStatus::Empty,
+            buffer: Box::new(Buffer::new()),
             cursor: ptr - strand.start(),
         }
     }
@@ -73,9 +64,9 @@ impl<'s, 'd> StrandReader<'s, 'd> {
     fn read_page(&mut self, offset: u64) -> io::Result<()> {
         debug_assert_eq!(offset % PAGE_SIZE64, 0, "Read offset isn't page aligned");
 
-        match self.strand.read(offset, &mut self.page) {
+        match self.strand.read(offset, &mut self.buffer[..]) {
             Ok(_) => {
-                self.status = BufferStatus::Clean;
+                self.buffer.status = BufferStatus::Clean;
                 Ok(())
             }
             Err(e) => Err(to_io_error(e)),
@@ -99,9 +90,11 @@ impl<'s, 'd> Read for StrandReader<'s, 'd> {
         let len = min(PAGE_SIZE - off, buf.len());
 
         // Copy data
-        let src = &self.page[off..off + len];
-        let dest = &mut buf[..len];
-        dest.copy_from_slice(src);
+        {
+            let src = &self.buffer[off..off + len];
+            let dest = &mut buf[..len];
+            dest.copy_from_slice(src);
+        }
 
         // Update metadata
         {
@@ -112,7 +105,7 @@ impl<'s, 'd> Read for StrandReader<'s, 'd> {
             let new_off = off as u64 + len;
             if new_off >= PAGE_SIZE64 {
                 debug_assert_eq!(page_off + 1, align(new_off));
-                self.status = BufferStatus::Empty;
+                self.buffer.status = BufferStatus::Empty;
             }
         }
 
@@ -128,7 +121,8 @@ impl<'s, 'd> BufRead for StrandReader<'s, 'd> {
 
         // Return slice
         let off = (self.cursor - page_off) as usize;
-        Ok(&self.page[off..])
+        let slice = &self.buffer[off..];
+        Ok(slice)
     }
 
     fn consume(&mut self, amt: usize) {
@@ -140,8 +134,7 @@ impl<'s, 'd> BufRead for StrandReader<'s, 'd> {
 #[derive(Debug)]
 pub struct StrandWriter<'s, 'd: 's> {
     strand: &'s mut Strand<'d>,
-    block: Box<Block>,
-    status: BufferStatus,
+    buffer: Box<Buffer<Block>>,
     cursor: u64,
     pub update_offset: bool,
 }
@@ -152,8 +145,7 @@ impl<'s, 'd> StrandWriter<'s, 'd> {
 
         StrandWriter {
             strand: strand,
-            block: Box::new(Block::default()),
-            status: BufferStatus::Empty,
+            buffer: Box::new(Buffer::new()),
             cursor: offset,
             update_offset: true,
         }
@@ -184,11 +176,11 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
         let block_off = block_align(self.cursor);
 
         // Update buffer if needed
-        if self.status == BufferStatus::Empty {
-            self.strand.read(block_off, &mut self.block).map_err(
+        if self.buffer.status == BufferStatus::Empty {
+            self.strand.read(block_off, &mut self.buffer[..]).map_err(
                 to_io_error,
             )?;
-            self.status = BufferStatus::Clean;
+            self.buffer.status = BufferStatus::Clean;
         }
 
         // Determine how many bytes to write
@@ -198,14 +190,14 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
         // Copy data
         {
             let src = &buf[..len];
-            let dest = &mut self.block[off..off + len];
+            let dest = &mut self.buffer[off..off + len];
             dest.copy_from_slice(src);
         }
 
         // Update metadata
         {
             let len = len as u64;
-            self.status = BufferStatus::Dirty;
+            self.buffer.status = BufferStatus::Dirty;
             self.cursor += len;
             self.strand.stats.get_mut().buffer_written_bytes += len;
 
@@ -216,24 +208,24 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
 
         // Flush if necessary
         if off + len >= TRIM_SIZE {
-            self.strand.write(block_off, &self.block).map_err(
+            self.strand.write(block_off, &self.buffer[..]).map_err(
                 to_io_error,
             )?;
-            self.status = BufferStatus::Clean;
+            self.buffer.status = BufferStatus::Clean;
         }
 
         Ok(len)
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        if self.status != BufferStatus::Dirty {
+        if self.buffer.status != BufferStatus::Dirty {
             return Ok(());
         }
 
         // Write current block
         let off = block_align(self.cursor);
-        self.strand.write(off, &self.block).map_err(to_io_error)?;
-        self.status = BufferStatus::Clean;
+        self.strand.write(off, &self.buffer[..]).map_err(to_io_error)?;
+        self.buffer.status = BufferStatus::Clean;
 
         Ok(())
     }
