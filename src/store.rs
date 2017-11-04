@@ -33,18 +33,17 @@ use super::volume::Volume;
 use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
 #[derive(Debug)]
-pub struct Store {
-    volume: Volume,
+pub struct Store<'a> {
+    volume: Volume<'a>,
     index: Index,
     deleted: Deleted,
     cache: ReadCache,
 }
 
-impl Store {
-    // Create
+impl<'a> Store<'a> {
     pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
         let ssd = Ssd::open(file)?;
-        let (volume, state) = Volume::open(ssd, options)?;
+        let (volume, state) = Volume::open(Box::new(ssd), options)?;
         let (index, deleted) = state.extract();
 
         Ok(Store {
@@ -55,16 +54,16 @@ impl Store {
         })
     }
 
-    pub fn memory(bytes: usize, options: &OpenOptions) -> Self {
+    pub fn memory(bytes: usize, options: &OpenOptions) -> Result<Self> {
         let memory = Memory::new(bytes);
-        let (volume, _) = Volume::open(memory, options)?;
+        let (volume, _) = Volume::open(Box::new(memory), options)?;
 
-        Store {
+        Ok(Store {
             volume: volume,
             index: Index::new(),
             deleted: Deleted::new(),
             cache: ReadCache::new(),
-        }
+        })
     }
 
     // Helper methods
@@ -255,11 +254,11 @@ impl Store {
     }
 }
 
-impl Drop for Store {
+impl<'a> Drop for Store<'a> {
     fn drop(&mut self) {
         self.write_state().expect("Writing datastore state failed");
     }
 }
 
-unsafe impl Send for Store {}
-unsafe impl Sync for Store {}
+unsafe impl<'a> Send for Store<'a> {}
+unsafe impl<'a> Sync for Store<'a> {}
