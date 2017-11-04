@@ -1,5 +1,5 @@
 /*
- * buffer/mod.rs
+ * buffer/buffer.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,21 +19,43 @@
  *
  */
 
-mod block;
-mod buffer;
-mod page;
-mod traits;
+use std::ops::{Deref, DerefMut};
+use super::{ByteArray, BufferStatus};
 
-use super::{PAGE_SIZE, TRIM_SIZE};
+#[derive(Debug, Clone, Hash)]
+pub struct Buffer<B: ByteArray> {
+    bytes: B,
+    status: BufferStatus,
+    cursor: u64,
+}
 
-pub use self::block::Block;
-pub use self::buffer::Buffer;
-pub use self::page::Page;
-pub use self::traits::ByteArray;
+impl<B: ByteArray> Buffer<B> {
+    pub fn new() -> Self {
+        Buffer {
+            bytes: B::default(),
+            status: BufferStatus::Empty,
+            cursor: 0,
+        }
+    }
+}
 
-#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
-pub enum BufferStatus {
-    Clean,
-    Dirty,
-    Empty,
+impl<B: ByteArray> Deref for Buffer<B> {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &*self.bytes
+    }
+}
+
+impl<B: ByteArray> DerefMut for Buffer<B> {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        &mut *self.bytes
+    }
+}
+
+impl<B: ByteArray> Default for Buffer<B> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
 }

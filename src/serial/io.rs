@@ -21,18 +21,16 @@
 
 use std::cmp::min;
 use std::io::{self, BufRead, Read, Write};
-use super::buffer::{Block, Page};
+use super::buffer::{Block, BufferStatus, Page};
 use super::error::Error;
 use super::header::StrandHeader;
 use super::strand::Strand;
 use super::utils::{align, block_align};
 use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, TRIM_SIZE64, FilePointer};
 
-#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
-enum BufferStatus {
-    Clean,
-    Dirty,
-    Empty,
+thread_local! {
+    static READ_BUFFER: Page = Page::default();
+    static WRITE_BUFFER: Block = Block::default();
 }
 
 fn to_io_error(err: Error) -> io::Error {
@@ -48,7 +46,6 @@ fn to_io_error(err: Error) -> io::Error {
 #[derive(Debug, Clone)]
 pub struct StrandReader<'s, 'd: 's> {
     strand: &'s Strand<'d>,
-    page: Page,
     status: BufferStatus,
     cursor: u64,
 }
@@ -62,7 +59,6 @@ impl<'s, 'd> StrandReader<'s, 'd> {
 
         StrandReader {
             strand: strand,
-            page: Page::default(),
             status: BufferStatus::Empty,
             cursor: ptr - strand.start(),
         }
@@ -140,7 +136,6 @@ impl<'s, 'd> BufRead for StrandReader<'s, 'd> {
 #[derive(Debug)]
 pub struct StrandWriter<'s, 'd: 's> {
     strand: &'s mut Strand<'d>,
-    block: Box<Block>,
     status: BufferStatus,
     cursor: u64,
     pub update_offset: bool,
@@ -152,7 +147,6 @@ impl<'s, 'd> StrandWriter<'s, 'd> {
 
         StrandWriter {
             strand: strand,
-            block: Box::new(Block::default()),
             status: BufferStatus::Empty,
             cursor: offset,
             update_offset: true,
