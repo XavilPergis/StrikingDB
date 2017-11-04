@@ -54,6 +54,21 @@ fn updates(store: &Store, id: u32) {
     }
 }
 
+fn puts(store: &Store, _id: u32) {
+    let mut rng = StdRng::new().expect("Creating RNG failed");
+    let mut key = Vec::new();
+    let mut val = Vec::new();
+
+    for i in 0..OPERATIONS {
+        key.clear();
+        val.clear();
+
+        write!(&mut key, "key_{}", rng.next_u64() % 512).unwrap();
+        write!(&mut val, "val_{}_{}", i, rng.next_u64()).unwrap();
+        store.put(key.as_slice(), val.as_slice()).expect("Put failed!");
+    }
+}
+
 fn throughput(elapsed: Duration) {
     let mut seconds = elapsed.as_secs() as f64;
     seconds += (elapsed.subsec_nanos() as f64) / 1e9;
@@ -87,6 +102,19 @@ pub fn run(store: Store) {
 
             for i in 0..cpus {
                 scope.execute(move || updates(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
+
+    {
+        print!("Running puts... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
+
+            for i in 0..cpus {
+                scope.execute(move || puts(store, i));
             }
         });
         throughput(start.elapsed());

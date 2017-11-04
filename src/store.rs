@@ -158,8 +158,6 @@ impl<'a> Store<'a> {
         Self::verify_val(val)?;
 
         let mut entry = self.index.lock(key);
-
-        let old_ptr = entry.value.unwrap();
         let ptr = self.volume.write(|strand| {
             {
                 let stats = &mut strand.stats.lock();
@@ -173,6 +171,7 @@ impl<'a> Store<'a> {
         })?;
 
         if entry.exists() {
+            let old_ptr = entry.value.unwrap();
             self.remove_item(key, old_ptr);
         }
 
