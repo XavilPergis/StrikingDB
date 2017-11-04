@@ -57,7 +57,6 @@ impl ReadCache {
     }
 
     pub fn remove(&self, key: &[u8]) -> Option<Box<[u8]>> {
-        println!("remove: {:?}, self: {:?}", key, self);
         self.0.write().remove(key)
     }
 

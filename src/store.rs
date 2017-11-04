@@ -184,13 +184,14 @@ impl<'a> Store<'a> {
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
-        let entry = self.index.lock(key);
+        let mut entry = self.index.lock(key);
         if !entry.exists() {
             return Err(Error::ItemNotFound);
         }
 
         let ptr = entry.value.unwrap();
         self.remove_item(key, ptr);
+        entry.value = None;
 
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
@@ -209,7 +210,7 @@ impl<'a> Store<'a> {
     pub fn remove(&self, key: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
 
-        let entry = self.index.lock(key);
+        let mut entry = self.index.lock(key);
         if let Some(ptr) = entry.value {
             self.volume.read(ptr, |strand| {
                 let stats = &mut strand.stats.lock();
@@ -217,6 +218,7 @@ impl<'a> Store<'a> {
             });
 
             self.remove_item(key, ptr);
+            entry.value = None;
         }
 
         Ok(())
