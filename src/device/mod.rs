@@ -20,6 +20,8 @@
  */
 
 use std::fmt::Debug;
+use std::fs::{File, OpenOptions};
+use std::path::Path;
 use super::*;
 
 mod memory;
@@ -64,4 +66,14 @@ fn check_trim(dev: &Device, off: u64, len: u64) {
     assert_eq!(off % TRIM_SIZE64, 0, "Offset not a multiple of the trim size");
     assert_eq!(len % TRIM_SIZE64, 0, "Length not a multiple of the trim size");
     assert!(off + len <= dev.capacity(), "Trim is out of bounds");
+}
+
+#[inline]
+fn open_file(path: &Path) -> Result<File> {
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)?;
+
+    Ok(file)
 }

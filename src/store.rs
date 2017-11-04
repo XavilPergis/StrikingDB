@@ -25,7 +25,7 @@ use index::Index;
 use options::OpenOptions;
 use serial::{DatastoreState, read_item, write_item};
 use stats::Stats;
-use std::fs::File;
+use std::path::Path;
 use strand::Strand;
 use super::device::{Ssd, Memory};
 use super::error::Error;
@@ -41,8 +41,8 @@ pub struct Store<'a> {
 }
 
 impl<'a> Store<'a> {
-    pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
-        let ssd = Ssd::open(file)?;
+    pub fn open<P: AsRef<Path>>(path: P, options: &OpenOptions) -> Result<Self> {
+        let ssd = Ssd::open(path.as_ref())?;
         let (volume, state) = Volume::open(Box::new(ssd), options)?;
         let (index, deleted) = state.extract();
 
