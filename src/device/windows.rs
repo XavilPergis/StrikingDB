@@ -19,11 +19,22 @@
  *
  */
 
-// TODO
-
 use std::fs::File;
+use std::{io, mem};
 use std::os::windows::prelude::*;
-use super::{Device, Result};
+use super::{Device, Error, Result};
+use winapi::minwindef::*;
+use winapi::{kernel32, winioctl, winnt};
+
+#[repr(C)]
+#[derive(Debug, Default, Clone)]
+struct DISK_GEOMETRY {
+    pub Cylinders: LARGE_INTEGER,
+    pub MediaType: MEDIA_TYPE,
+    pub TracksPerCylinder: DWORD,
+    pub SectorsPerTrack: DWORD,
+    pub BytesPerSector: DWORD,
+}
 
 #[derive(Debug)]
 pub struct Ssd {
@@ -33,9 +44,40 @@ pub struct Ssd {
 }
 
 impl Ssd {
+    unsafe fn get_block_capacity(handle: RawHandle) -> Result<u64> {
+        let mut dg = DISK_GEOMETRY::default();
+        let mut bytes = 0;
+        let ret = kernel32::DeviceIoControl(
+            handle,
+            winioctl::IOCTL_DISK_GET_DISK_GEOMETRY,
+            &mut dg,
+            mem::size_of::<DISK_GEOMETRY>(),
+            &mut dg,
+            mem::size_of::<DISK_GEOMETRY>(),
+            &mut bytes,
+            0,
+        );
+
+        match ret {
+            true => Ok(dg.BytesPerSector * dg.SectorsPerTrack * dg.TracksPerCylinder * dg.Cylinders.QuadPart),
+            false => Err(Error::Io(io::Error::last_os_error())),
+        }
+    }
+
     fn get_metadata(file: &mut File) -> Result<(u64, bool)> {
         let metadata = file.metadata()?;
-        unimplemented!();
+        let attributes = metadata.file_attributes();
+
+        if attributes & winnt::FILE_ATTRIBUTE_DEVICE != 0 {
+            let capacity = unsafe {
+                Self::get_block_capacity(file.as_raw_handle())?
+            };
+            Ok((capacity, true))
+        } else if metdata.file_type().is_file() {
+            Ok((metadata.file_size(), false))
+        } else {
+            Err(Error::FileType)
+        }
     }
 
     pub fn open(mut file: File) -> Result<Self> {
