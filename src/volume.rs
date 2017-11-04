@@ -227,12 +227,10 @@ impl<'a> Volume<'a> {
     pub fn stats(&self) -> Stats {
         let mut total_stats = Stats::default();
 
-        self.0.rent(|strands| {
-            for ref strand in strands.iter() {
-                let guard = strand.read();
-                let stats = guard.stats.lock();
-                total_stats += stats.clone();
-            }
+        self.0.rent(|strands| for ref strand in strands.iter() {
+            let guard = strand.read();
+            let stats = guard.stats.lock();
+            total_stats += stats.clone();
         });
 
         total_stats
