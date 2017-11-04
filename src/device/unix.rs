@@ -85,7 +85,7 @@ impl Device {
         let len = buf.len() as u64;
         assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
         assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
-        assert!(off + len < self.capacity, "Read is out of bounds");
+        assert!(off + len <= self.capacity, "Read is out of bounds");
 
         match self.fh.read_at(buf, off) {
             Ok(read) => {
@@ -100,7 +100,7 @@ impl Device {
         let len = buf.len() as u64;
         assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
         assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
-        assert!(off + len < self.capacity, "Write is out of bounds");
+        assert!(off + len <= self.capacity, "Write is out of bounds");
 
         match self.fh.write_at(buf, off) {
             Ok(written) => {
@@ -114,7 +114,7 @@ impl Device {
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         assert_eq!(off % TRIM_SIZE64, 0, "Offset not a multiple of the trim size");
         assert_eq!(len % TRIM_SIZE64, 0, "Length not a multiple of the trim size");
-        assert!(off + len < self.capacity, "Trim is out of bounds");
+        assert!(off + len <= self.capacity, "Trim is out of bounds");
 
         if self.block {
             // TODO test
