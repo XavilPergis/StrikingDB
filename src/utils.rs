@@ -27,28 +27,6 @@ pub fn align(off: u64) -> u64 {
 }
 
 #[inline]
-pub fn align_up(off: u64) -> u64 {
-    let mut align_off = align(off);
-
-    if align_off != off {
-        align_off += 1;
-    }
-
-    align_off
-}
-
-#[inline]
 pub fn block_align(off: u64) -> u64 {
     (off / TRIM_SIZE64) * TRIM_SIZE64
-}
-
-#[inline]
-pub fn block_align_up(off: u64) -> u64 {
-    let mut align_off = align(off);
-
-    if align_off != off {
-        align_off += 1;
-    }
-
-    align_off
 }

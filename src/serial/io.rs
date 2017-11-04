@@ -26,7 +26,7 @@ use super::error::Error;
 use super::header::StrandHeader;
 use super::strand::Strand;
 use super::utils::{align, block_align};
-use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, TRIM_SIZE64, FilePointer};
+use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, FilePointer};
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
 enum BufferStatus {

@@ -25,15 +25,16 @@ use device::Device;
 use error::Error;
 use index::Index;
 use num_cpus;
-use options::{OpenMode, OpenOptions};
+use options::OpenOptions;
 use parking_lot::RwLock;
+use self::rentals::VolumeRental;
 use serial::{DatastoreState, VolumeHeader};
 use stats::Stats;
 use std::cmp::{Ordering, min};
 use std::time::Duration;
 use std::u16;
 use strand::Strand;
-use super::{MIN_STRANDS, PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
+use super::{MIN_STRANDS, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
@@ -73,7 +74,7 @@ impl VolumeOpen {
         })
     }
 
-    fn read(dev: &Device, options: &OpenOptions) -> Result<Self> {
+    fn read(dev: &Device) -> Result<Self> {
         let mut page = Page::default();
         dev.read(0, &mut page[..])?;
 
@@ -91,14 +92,12 @@ rental! {
         use super::*;
 
         #[rental(debug_borrow)]
-        pub struct VolumeRental {
-            device: Box<Device>,
+        pub struct VolumeRental<'a> {
+            device: Box<Device + 'a>,
             strands: Box<[RwLock<Strand<'device>>]>,
         }
     }
 }
-
-use self::rentals::VolumeRental;
 
 #[derive(Debug, Default)]
 pub struct VolumeState(Option<(Index, Deleted)>);
@@ -117,20 +116,20 @@ impl VolumeState {
 }
 
 #[derive(Debug)]
-pub struct Volume(VolumeRental);
+pub struct Volume<'a>(VolumeRental<'a>);
 
-impl Volume {
-    pub fn open(device: Device, options: &OpenOptions) -> Result<(Self, VolumeState)> {
+impl<'a> Volume<'a> {
+    pub fn open(device: Box<Device>, options: &OpenOptions) -> Result<(Self, VolumeState)> {
         use rental::TryNewError;
 
         let mut state_ptr = None;
-        let try_rental = VolumeRental::try_new(Box::new(device), |device| {
+        let try_rental = VolumeRental::try_new(device, |device| {
             use OpenMode::*;
 
             // Collect options
             let open = match options.mode {
-                Read => VolumeOpen::read(&device, options)?,
-                Create | Truncate => VolumeOpen::new(&device, options)?,
+                Create | Truncate => VolumeOpen::new(device, options)?,
+                Read => VolumeOpen::read(device)?,
             };
 
             if !options.reindex {
@@ -155,7 +154,7 @@ impl Volume {
                 debug_assert_ne!(len, 0, "Length of strand must be nonzero");
 
                 left -= len;
-                let strand = Strand::new(&device, i, off, len, open.read_disk)?;
+                let strand = Strand::new(device, i, off, len, open.read_disk)?;
                 strands.push(RwLock::new(strand));
             }
             debug_assert_eq!(left, 0, "Not all space is allocated in a strand");
