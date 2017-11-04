@@ -69,6 +69,18 @@ fn puts(store: &Store, _id: u32) {
     }
 }
 
+fn deletes(store: &Store, id: u32) {
+    let mut key = Vec::new();
+    let mut val = [0; 0];
+
+    for i in 0..OPERATIONS {
+        key.clear();
+
+        write!(&mut key, "key_{}_{}", id, i).unwrap();
+        store.delete(key.as_slice(), &mut val[..]).expect("Update failed!");
+    }
+}
+
 fn throughput(elapsed: Duration) {
     let mut seconds = elapsed.as_secs() as f64;
     seconds += (elapsed.subsec_nanos() as f64) / 1e9;
@@ -115,6 +127,19 @@ pub fn run(store: Store) {
 
             for i in 0..cpus {
                 scope.execute(move || puts(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
+
+    {
+        print!("Running deletes... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
+
+            for i in 0..cpus {
+                scope.execute(move || deletes(store, i));
             }
         });
         throughput(start.elapsed());
