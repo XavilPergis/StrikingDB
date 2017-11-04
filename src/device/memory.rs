@@ -19,36 +19,70 @@
  *
  */
 
+use parking_lot::RwLock;
 use super::{Device, Result};
+use super::{check_read, check_write, check_trim};
 
 #[derive(Debug)]
-pub struct Memory(Box<[u8]>);
+pub struct Memory(RwLock<Box<[u8]>>, u64);
 
 impl Memory {
     pub fn new(bytes: usize) -> Self {
         let buffer = Vec::with_capacity(bytes).into_boxed_slice();
-        Memory(buffer)
+        Memory(RwLock::new(buffer), bytes as u64)
     }
 }
 
 impl Device for Memory {
+    #[inline]
     fn capacity(&self) -> u64 {
-        unimplemented!();
+        self.1
     }
 
+    #[inline]
     fn block(&self) -> bool {
-        unimplemented!();
+        false
     }
 
     fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
-        unimplemented!();
+        check_read(self, off, buf);
+
+        let off = off as usize;
+        let end = off + buf.len();
+
+        let guard = self.0.read();
+        let buffer = &*guard;
+        let src = &buffer[off..end];
+        buf.copy_from_slice(src);
+
+        Ok(())
     }
 
     fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
-        unimplemented!();
+        check_write(self, off, buf);
+
+        let off = off as usize;
+        let end = off + buf.len();
+
+        let mut guard = self.0.write();
+        let buffer = &mut *guard;
+        let dest = &mut buffer[off..end];
+        dest.copy_from_slice(buf);
+
+        Ok(())
     }
 
     fn trim(&self, off: u64, len: u64) -> Result<()> {
-        unimplemented!();
+        check_trim(self, off, len);
+
+        // A trim "erases" the given device's region,
+        // and any reads from this region will yield
+        // undefined values.
+        //
+        // As such, it doesn't matter what we do to this
+        // region, since the user shouldn't be reading
+        // from this section anyways. Thus, we do nothing.
+
+        Ok(())
     }
 }
