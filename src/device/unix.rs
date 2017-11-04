@@ -23,7 +23,8 @@ use nix::libc;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::*;
-use super::{PAGE_SIZE64, TRIM_SIZE64, Device, Error, Result};
+use super::utils::align;
+use super::{Device, Error, Result};
 use super::{check_read, check_write, check_trim};
 
 mod ioctl {
@@ -34,26 +35,26 @@ mod ioctl {
 
 #[derive(Debug)]
 pub struct Ssd {
-    fh: File,
+    file: File,
     capacity: u64,
     block: bool,
 }
 
 impl Ssd {
-    fn get_metadata(fh: &mut File) -> Result<(u64, bool)> {
-        let metadata = fh.metadata()?;
+    fn get_metadata(file: &mut File) -> Result<(u64, bool)> {
+        let metadata = file.metadata()?;
         let ftype = metadata.file_type();
 
         if ftype.is_block_device() {
             let mut capacity = 0;
-            let result = unsafe { ioctl::blkgetsize64(fh.as_raw_fd(), &mut capacity) };
+            let result = unsafe { ioctl::blkgetsize64(file.as_raw_fd(), &mut capacity) };
 
             match result {
                 Ok(_) => Ok((capacity, true)),
                 Err(_) => Err(Error::Io(None)),
             }
         } else if ftype.is_file() {
-            match fh.seek(SeekFrom::End(0)) {
+            match file.seek(SeekFrom::End(0)) {
                 Ok(capacity) => Ok((capacity, false)),
                 Err(e) => Err(Error::Io(Some(e))),
             }
@@ -62,12 +63,12 @@ impl Ssd {
         }
     }
 
-    pub fn open(mut fh: File) -> Result<Self> {
-        let (capacity, block) = Self::get_metadata(&mut fh)?;
+    pub fn open(mut file: File) -> Result<Self> {
+        let (capacity, block) = Self::get_metadata(&mut file)?;
 
         Ok(Ssd {
-            fh: fh,
-            capacity: capacity,
+            file: file,
+            capacity: align(capacity),
             block: block,
         })
     }
@@ -80,14 +81,14 @@ impl Device for Ssd {
     }
 
     #[inline]
-    fn block(&self) -> bool {
+    fn block_device(&self) -> bool {
         self.block
     }
 
     fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         check_read(self, off, buf);
 
-        match self.fh.read_at(buf, off) {
+        match self.file.read_at(buf, off) {
             Ok(read) => {
                 assert_eq!(read, buf.len(), "Did not read full buffer");
                 Ok(())
@@ -99,7 +100,7 @@ impl Device for Ssd {
     fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
         check_write(self, off, buf);
 
-        match self.fh.write_at(buf, off) {
+        match self.file.write_at(buf, off) {
             Ok(written) => {
                 assert_eq!(written, buf.len(), "Did not write full buffer");
                 Ok(())
@@ -114,7 +115,7 @@ impl Device for Ssd {
         if self.block {
             // TODO test
             let tuple = [off, len];
-            let result = unsafe { ioctl::blkdiscard(self.fh.as_raw_fd(), &[tuple]) };
+            let result = unsafe { ioctl::blkdiscard(self.file.as_raw_fd(), &[tuple]) };
 
             match result {
                 Ok(_) => Ok(()),
@@ -123,7 +124,7 @@ impl Device for Ssd {
         } else {
             let ret = unsafe {
                 libc::fallocate(
-                    self.fh.as_raw_fd(),
+                    self.file.as_raw_fd(),
                     0x01 | 0x02,
                     off as libc::off_t,
                     len as libc::off_t,

@@ -40,7 +40,7 @@ impl Device for Memory {
     }
 
     #[inline]
-    fn block(&self) -> bool {
+    fn block_device(&self) -> bool {
         false
     }
 

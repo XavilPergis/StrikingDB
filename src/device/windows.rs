@@ -21,17 +21,42 @@
 
 // TODO
 
-use super::Device;
+use std::fs::File;
+use std::os::windows::prelude::*;
+use super::{Device, Result};
 
 #[derive(Debug)]
-pub struct Ssd;
+pub struct Ssd {
+    file: File,
+    capacity: u64,
+    block: bool,
+}
 
-impl Device for Ssd {
-    fn capacity(&self) -> u64 {
+impl Ssd {
+    fn get_metadata(file: &mut File) -> Result<(u64, bool)> {
+        let metadata = file.metadata()?;
         unimplemented!();
     }
 
-    fn block(&self) -> bool {
+    pub fn open(mut file: File) -> Result<Self> {
+        let (capacity, block) = Self::get_metadata()?;
+
+        Ok(Ssd {
+            file: file,
+            capacity: capacity,
+            block: block,
+        })
+    }
+}
+
+impl Device for Ssd {
+    #[inline]
+    fn capacity(&self) -> u64 {
+        self.capacity
+    }
+
+    #[inline]
+    fn block_device(&self) -> bool {
         unimplemented!();
     }
 

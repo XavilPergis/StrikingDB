@@ -37,7 +37,7 @@ cfg_if! {
 
 pub trait Device: Debug {
     fn capacity(&self) -> u64;
-    fn block(&self) -> bool;
+    fn block_device(&self) -> bool;
     fn read(&self, off: u64, buf: &mut [u8]) -> Result<()>;
     fn write(&self, off: u64, buf: &[u8]) -> Result<()>;
     fn trim(&self, off: u64, len: u64) -> Result<()>;

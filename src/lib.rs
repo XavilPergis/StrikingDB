@@ -40,9 +40,15 @@ extern crate parking_lot;
 extern crate rental;
 extern crate stable_deref_trait;
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+/* Platform-specific dependencies */
+cfg_if! {
+    if #[cfg(unix)] {
+        #[macro_use]
+        extern crate nix;
+    } else if #[cfg(windows)] {
+        extern crate winapi;
+    }
+}
 
 /* Generated sources */
 mod build {
