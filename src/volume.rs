@@ -141,7 +141,7 @@ impl<'a> Volume<'a> {
             }
 
             // Divide device into strands
-            let mut left = device.capacity();
+            let mut left = device.capacity() - PAGE_SIZE64;
             let size = align(device.capacity() / open.strands as u64);
 
             let mut strands = Vec::with_capacity(open.strands as usize);
