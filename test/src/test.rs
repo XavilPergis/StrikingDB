@@ -22,7 +22,6 @@
 use striking_db::Store;
 
 pub fn run(store: Store) {
-    let mut key = [0; 16];
     let mut value = [0; 16];
 
     store.insert(b"abc", b"000").expect("1 - Insertion failed");

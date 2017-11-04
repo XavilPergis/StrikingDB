@@ -23,35 +23,72 @@ use num_cpus;
 use rand::{Rng, StdRng};
 use scoped_threadpool::Pool;
 use std::io::Write;
+use std::time::{Duration, Instant};
 use striking_db::Store;
 
-const OPERATIONS: u32 = 300_000;
+const OPERATIONS: u32 = 50_000;
 
-fn inserts(store: &Store, id: u16) {
+fn inserts(store: &Store, id: u32) {
     let mut rng = StdRng::new().expect("Creating RNG failed");
-    let mut key = [0; 32];
-    let mut val = [0; 32];
+    let mut key = Vec::new();
+    let mut val = Vec::new();
 
     for i in 0..OPERATIONS {
-        let mut key_slice = &mut key[..];
-        let mut val_slice = &mut val[..];
+        key.clear();
+        val.clear();
 
-        write!(&mut key_slice, "key_{}_{}", id, rng.next_u64()).unwrap();
-        write!(&mut val_slice, "value_{}_{}", rng.next_u64(), rng.next_u64()).unwrap();
-
-        store.insert(key_slice, val_slice).expect("Insertion failed!");
+        write!(&mut key, "key_{}_{}", id, i).unwrap();
+        write!(&mut val, "value_{}_{}_{}", i, rng.next_u64(), rng.next_u64()).unwrap();
+        store.insert(key.as_slice(), val.as_slice()).expect("Insertion failed!");
     }
 }
 
+fn updates(store: &Store, id: u32) {
+    let mut key = Vec::new();
+
+    for i in 0..OPERATIONS {
+        key.clear();
+
+        write!(&mut key, "key_{}_{}", id, i).unwrap();
+        store.update(key.as_slice(), b"new value").expect("Update failed!");
+    }
+}
+
+fn throughput(elapsed: Duration) {
+    let mut seconds = elapsed.as_secs() as f64;
+    seconds += (elapsed.subsec_nanos() as f64) / 1e9;
+    let ops = OPERATIONS as f64 / seconds;
+
+    println!("{:.2} operations / second", ops);
+}
+
 pub fn run(store: Store) {
-    let mut pool = Pool::new(num_cpus::get() as u32);
+    let cpus = num_cpus::get() as u32;
+    let mut pool = Pool::new(cpus);
 
-    pool.scoped(|scope| {
-        let store = &store;
+    {
+        print!("Running inserts... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
 
-        println!("Running inserts...");
-        for i in 0..32 {
-            scope.execute(move || inserts(store, i));
-        }
-    });
+            for i in 0..cpus {
+                scope.execute(move || inserts(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
+
+    {
+        print!("Running updates... ");
+        let start = Instant::now();
+        pool.scoped(|scope| {
+            let store = &store;
+
+            for i in 0..cpus {
+                scope.execute(move || updates(store, i));
+            }
+        });
+        throughput(start.elapsed());
+    }
 }
