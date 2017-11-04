@@ -49,7 +49,6 @@ fn main() {
         let len = store.delete(b"def", &mut value[..]).expect("3 - Delete failed");
         assert_eq!(b"ABCDEF", &value[..len]);
 
-        let res =  store.lookup(b"def", &mut value[..]);//.expect_err("3 - Lookup succeeded");
-        println!("res: {:?}", res);
+        store.lookup(b"def", &mut value[..]).expect_err("3 - Lookup succeeded");
     }
 }
