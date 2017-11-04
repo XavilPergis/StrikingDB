@@ -1,17 +1,43 @@
+/*
+ * test/main.rs
+ *
+ * striking-db - Persistent key/value store for SSDs.
+ * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
+ *
+ * striking-db is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * striking-db is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with striking-db.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+extern crate num_cpus;
+extern crate rand;
+extern crate scoped_threadpool;
 extern crate striking_db;
 
+mod perf;
+mod test;
+
 use std::{env, process};
-use std::io::Write;
 use striking_db::{OpenOptions, Store};
 
 fn main() {
     let args = env::args().collect::<Vec<String>>();
-    if args.len() != 2 {
-        eprintln!("Usage: {} datastore-file-path", &args[0]);
+    if args.len() != 3 {
+        eprintln!("Usage: {} operation datastore-file-path", &args[0]);
         process::exit(1);
     }
 
-    let path = &args[1];
+    let path = &args[2];
     let options = {
         let mut options = OpenOptions::new();
         options.truncate();
@@ -19,45 +45,15 @@ fn main() {
     };
 
     let store = Store::open(path, &options).expect("Opening datastore failed");
-    let mut key = [0; 16];
-    let mut value = [0; 16];
 
-    store.insert(b"abc", b"000").expect("1 - Insertion failed");
-    {
-        let len = store.lookup(b"abc", &mut value[..]).expect("1 - Lookup failed");
-        assert_eq!(b"000", &value[..len]);
-    }
-    {
-        let len = store.lookup(b"abc", &mut value[..]).expect("1 - Lookup failed");
-        assert_eq!(b"000", &value[..len]);
-    }
-    {
-        let len = store.lookup(b"abc", &mut value[..]).expect("1 - Lookup failed");
-        assert_eq!(b"000", &value[..len]);
-    }
+    let caller = match args[1].as_str() {
+        "perf" => perf::run,
+        "test" => test::run,
+        name => {
+            eprintln!("No such operation: {}", name);
+            process::exit(1);
+        }
+    };
 
-    store.update(b"abc", b"111").expect("2 - Update failed");
-    {
-        let len = store.lookup(b"abc", &mut value[..]).expect("2 - Lookup failed");
-        assert_eq!(b"111", &value[..len]);
-    }
-    {
-        let len = store.lookup(b"abc", &mut value[..]).expect("2 - Lookup failed");
-        assert_eq!(b"111", &value[..len]);
-    }
-
-    store.insert(b"def", b"ABCDEF").expect("3 - Insertion failed");
-    {
-        let len = store.delete(b"def", &mut value[..]).expect("3 - Delete failed");
-        assert_eq!(b"ABCDEF", &value[..len]);
-
-        store.lookup(b"def", &mut value[..]).expect_err("3 - Lookup succeeded");
-    }
-
-    // "Performance test"
-    for i in 0..10000 {
-        write!(&mut key[..], "key_{}", i).unwrap();
-        write!(&mut value[..], "val_{}", i).unwrap();
-        store.insert(&key[..], &value[..]).expect("Loop insertion failed");
-    }
+    caller(store);
 }

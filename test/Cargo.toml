@@ -4,4 +4,7 @@ version = "0.0.1"
 authors = ["Ammon Smith <ammon.i.smith@gmail.com>", "Maxwell Duzen"]
 
 [dependencies]
+num_cpus = "1.6"
+rand = "0.3"
+scoped_threadpool = "0.1"
 striking-db = { path = ".." }

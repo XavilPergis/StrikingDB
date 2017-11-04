@@ -200,7 +200,7 @@ impl<'a> Volume<'a> {
 
             let guard = match result {
                 Ok(idx) => strands[idx].read(),
-                Err(_) => panic!("File pointer 0x{:x} is not in any strand", ptr),
+                Err(_) => panic!("File pointer {:#x} is not in any strand", ptr),
             };
 
             func(&*guard)
