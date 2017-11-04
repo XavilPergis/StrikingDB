@@ -59,8 +59,18 @@ impl Ssd {
         );
 
         match ret {
-            true => Ok(dg.BytesPerSector * dg.SectorsPerTrack * dg.TracksPerCylinder * dg.Cylinders.QuadPart),
-            false => Err(Error::Io(io::Error::last_os_error())),
+            true => {
+                let mut capacity;
+                capacity = dg.BytesPerSector;
+                capacity *= dg.SectorsPerTrack;
+                capacity *= dg.TracksPerCylinder;
+                capacity *= dg.Cylinders.QuadPart;
+                Ok(capacity)
+            },
+            false => {
+                let last = Some(io::Error::last_os_error());
+                Err(Error::Io(last))
+            },
         }
     }
 
