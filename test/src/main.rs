@@ -19,6 +19,7 @@
  *
  */
 
+extern crate flame;
 extern crate num_cpus;
 extern crate rand;
 extern crate scoped_threadpool;

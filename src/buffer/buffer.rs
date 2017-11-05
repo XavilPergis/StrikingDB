@@ -19,7 +19,6 @@
  *
  */
 
-use std::cmp::min;
 use std::ops::{Deref, DerefMut};
 use super::{ByteArray, BufferStatus};
 
@@ -35,10 +34,6 @@ impl<B: ByteArray> Buffer<B> {
             bytes: B::default(),
             status: BufferStatus::Empty,
         }
-    }
-
-    pub fn reset(&mut self) {
-        self.status = BufferStatus::Empty;
     }
 }
 

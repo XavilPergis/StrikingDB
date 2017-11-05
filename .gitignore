@@ -2,6 +2,9 @@
 /target/
 Cargo.lock
 
+# FlameGraph
+flame-graph.html
+
 # Misc
 **/*.rs.bk
 **/*.rs.fmt

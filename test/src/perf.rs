@@ -19,9 +19,10 @@
  *
  */
 
-use num_cpus;
+use {flame, num_cpus};
 use rand::{Rng, StdRng};
 use scoped_threadpool::Pool;
+use std::fs::File;
 use std::io::Write;
 use std::time::{Duration, Instant};
 use striking_db::Store;
@@ -140,6 +141,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running inserts... ");
+        flame::start_guard("inserts");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -153,6 +155,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running sequential reads... ");
+        flame::start_guard("seq_read");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -166,6 +169,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running random reads... ");
+        flame::start_guard("rand_read");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -179,6 +183,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running updates... ");
+        flame::start_guard("updates");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -192,6 +197,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running puts... ");
+        flame::start_guard("puts");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -205,6 +211,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running mixed ops... ");
+        flame::start_guard("mixed");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -218,6 +225,7 @@ pub fn run(store: Store) {
 
     {
         print!("Running deletes... ");
+        flame::start_guard("deletes");
         let start = Instant::now();
         pool.scoped(|scope| {
             let store = &store;
@@ -228,4 +236,7 @@ pub fn run(store: Store) {
         });
         throughput(start.elapsed());
     }
+
+    // Create report
+    flame::dump_html(&mut File::create("flame-graph.html").unwrap()).unwrap();
 }
