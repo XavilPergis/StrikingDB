@@ -3,7 +3,9 @@
 Cargo.lock
 
 # FlameGraph
-flame-graph.html
+flame*.html
+flame*.svg
+perf.data
 
 # Misc
 **/*.rs.bk
