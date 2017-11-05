@@ -105,6 +105,10 @@ impl<'a> Store<'a> {
         )
     }
 
+    pub fn exists(&self, key: &[u8]) -> bool {
+        self.index.exists(key)
+    }
+
     // Update
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;

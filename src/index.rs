@@ -108,6 +108,10 @@ impl Index {
         Index(RwLock::new(map))
     }
 
+    pub fn exists(&self, key: &[u8]) -> bool {
+        self.0.read().contains_key(key)
+    }
+
     pub fn lock<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntryGuard<'i, 'k> {
         loop {
             if let Some(guard) = self.try_lock(key) {

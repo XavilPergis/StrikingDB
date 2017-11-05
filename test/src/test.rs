@@ -49,10 +49,12 @@ pub fn run(store: Store) {
     }
 
     store.insert(b"def", b"ABCDEF").expect("3 - Insertion failed");
+    assert_eq!(store.exists(b"def"), true);
     {
         let len = store.delete(b"def", &mut value[..]).expect("3 - Delete failed");
         assert_eq!(b"ABCDEF", &value[..len]);
 
+        assert_eq!(store.exists(b"def"), false);
         store.lookup(b"def", &mut value[..]).expect_err("3 - Lookup succeeded");
     }
 }
