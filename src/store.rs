@@ -201,6 +201,9 @@ impl<'a> Store<'a> {
     /// As this method has forms of handling for all cases of item
     /// existence / non-existence, it will never return
     /// [`Error::ItemNotFound`] or [`Error::Exists`].
+    ///
+    /// [`Error::Exists`]: enum.Error.html
+    /// [`Error::ItemNotFound`]: enum.Error.html
     pub fn merge<F, R>(&self, key: &[u8], func: F) -> Result<R>
     where
         F: FnOnce(&[u8], &mut Vec<u8>, &mut bool) -> R,
