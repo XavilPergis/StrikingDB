@@ -19,7 +19,6 @@
  *
  */
 
-use std::cmp::min;
 use std::ops::{Deref, DerefMut};
 use super::{ByteArray, BufferStatus};
 
@@ -37,6 +36,7 @@ impl<B: ByteArray> Buffer<B> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         self.status = BufferStatus::Empty;
     }
