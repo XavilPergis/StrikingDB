@@ -94,11 +94,11 @@ impl<'a> Store<'a> {
         }
 
         let entry = self.index.lock(key);
-        if !entry.exists() {
-            return Err(Error::ItemNotFound);
-        }
+        let ptr = match entry.value {
+            Some(ptr) => ptr,
+            None => return Err(Error::ItemNotFound),
+        };
 
-        let ptr = entry.value.unwrap();
         self.volume.read(
             ptr,
             |strand| self.lookup_item(strand, ptr, val),
@@ -133,11 +133,11 @@ impl<'a> Store<'a> {
         Self::verify_val(val)?;
 
         let mut entry = self.index.lock(key);
-        if !entry.exists() {
-            return Err(Error::ItemNotFound);
-        }
+        let old_ptr = match entry.value {
+            Some(ptr) => ptr,
+            None => return Err(Error::ItemNotFound),
+        };
 
-        let old_ptr = entry.value.unwrap();
         let ptr = self.volume.write(|strand| {
             {
                 let stats = &mut strand.stats.lock();
@@ -158,8 +158,11 @@ impl<'a> Store<'a> {
         Self::verify_val(val)?;
 
         let mut entry = self.index.lock(key);
+        let old_ptr = match entry.value {
+            Some(ptr) => ptr,
+            None => return Err(Error::ItemNotFound),
+        };
 
-        let old_ptr = entry.value.unwrap();
         let ptr = self.volume.write(|strand| {
             {
                 let stats = &mut strand.stats.lock();
@@ -185,13 +188,12 @@ impl<'a> Store<'a> {
         Self::verify_key(key)?;
 
         let entry = self.index.lock(key);
-        if !entry.exists() {
-            return Err(Error::ItemNotFound);
-        }
+        let ptr = match entry.value {
+            Some(ptr) => ptr,
+            None => return Err(Error::ItemNotFound),
+        };
 
-        let ptr = entry.value.unwrap();
         self.remove_item(key, ptr);
-
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
         }
