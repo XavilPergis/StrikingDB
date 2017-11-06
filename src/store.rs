@@ -183,6 +183,24 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    /// Performs an atomic read-modify-write on the given item.
+    /// This method takes the key to act upon, and a closure.
+    /// The closure is passed three arguments: the key, the value
+    /// buffer, and a boolean reference.
+    ///
+    /// If the item already exists in the datastore, then the
+    /// value vector is filled with its current value, and
+    /// "exists" is set to `true`. Otherwise the vector is
+    /// empty and "exists" is set to `false`.
+    ///
+    /// After the execution of the closure, the value of the boolean
+    /// is inspected. If it is true, then the item is inserted / updated
+    /// with the given value in the vector. If it is false, the item is
+    /// deleted.
+    ///
+    /// As this method has forms of handling for all cases of item
+    /// existence / non-existence, it will never return
+    /// [`Error::ItemNotFound`] or [`Error::Exists`].
     pub fn merge<F, R>(&self, key: &[u8], func: F) -> Result<R>
     where
         F: FnOnce(&[u8], &mut Vec<u8>, &mut bool) -> R,
