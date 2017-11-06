@@ -87,12 +87,17 @@ pub use stats::Stats;
 pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
 
-/* Constants */
+/// The version of this crate, as a string.
 pub const VERSION_STR: &'static str = build::PKG_VERSION;
 
+/// The maximum size for a valid key (128 KiB). Also note that valid
+/// keys may not have a length of zero.
 pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
+
+/// The maximum size of a valid value (512 MiB).
 pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
 
+/// The minimum number of strands that a datastore can be created with.
 pub const MIN_STRANDS: u16 = 2;
 
 const PAGE_SIZE: usize = 4 * 1024;
@@ -102,6 +107,8 @@ const PAGE_SIZE64: u64 = PAGE_SIZE as u64;
 const TRIM_SIZE64: u64 = TRIM_SIZE as u64;
 
 lazy_static! {
+    /// A lazily-initialized struct that contains a 3-tuple, in the
+    /// form `(major, minor, patch)`.
     pub static ref VERSION: (u8, u8, u8) = {
         let major = build::PKG_VERSION_MAJOR.parse::<u8>().unwrap();
         let minor = build::PKG_VERSION_MINOR.parse::<u8>().unwrap();
