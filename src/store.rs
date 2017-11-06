@@ -85,7 +85,15 @@ impl<'a> Store<'a> {
         }
     }
 
-    // Read
+    /// Gets the given item in the datastore.
+    ///
+    /// This method searches for the item associated with the passed
+    /// `key`. If found, then as much of the value as will fit is
+    /// copied into `val`, and the number of bytes written is returned.
+    ///
+    /// If there is no such item, then [`Error::ItemNotFound`] is returned.
+    ///
+    /// [`Error::ItemNotFound`]: enum.Error.html
     pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
@@ -105,7 +113,13 @@ impl<'a> Store<'a> {
         )
     }
 
-    // Update
+    /// Inserts an item into the datastore.
+    ///
+    /// This method will insert the item associated with the passed
+    /// `key`, failing with [`Error::ItemExists`] if there is already
+    /// such an item in the datastore.
+    ///
+    /// [`Error::ItemExists`]: enum.Error.html
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
@@ -128,6 +142,13 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    /// Updates an item in the datastore.
+    ///
+    /// This method will update the item associated with the passed
+    /// `key` with the provided `val`. If there is no such item,
+    /// then [`Error::ItemNotFound`] is returned.
+    ///
+    /// [`Error::ItemNotFound`]: enum.Error.html
     pub fn update(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
@@ -153,6 +174,11 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    /// Puts an item in the datastore.
+    ///
+    /// This method will place the provided key/value pair into the
+    /// datastore, regardless of whether or not such an item existed
+    /// before.
     pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
@@ -180,7 +206,45 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
-    // Delete
+    /// Removes an item from the datastore.
+    ///
+    /// This will remove the data associated with the
+    /// given key from the datastore. It is not an error
+    /// if the item doesn't exist.
+    ///
+    /// Note that the data may not be deleted from disk,
+    /// but rather it is flagged for removal when
+    /// vacuuming occurs.
+    pub fn remove(&self, key: &[u8]) -> Result<()> {
+        Self::verify_key(key)?;
+
+        let entry = self.index.lock(key);
+        if let Some(ptr) = entry.value {
+            self.volume.read(ptr, |strand| {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            });
+
+            self.remove_item(key, ptr);
+        }
+
+        Ok(())
+    }
+
+    /// Deletes an item from the datastore, retrieving it's value data.
+    ///
+    /// This will remove the item from the datastore, and retrieve its
+    /// value before deletion, copying as much as can fit into the buffer.
+    /// The number of bytes is returned. (See [`lookup`]).
+    ///
+    /// If the item does not exist, then [`Error::ItemNotFound`] is returned.
+    ///
+    /// Note that the data may not be deleted from disk,
+    /// but rather it is flagged for removal when
+    /// vacuuming occurs.
+    ///
+    /// [`Error::ItemNotFound`]: enum.Error.html
+    /// [`lookup`]: #method.lookup
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
@@ -206,23 +270,10 @@ impl<'a> Store<'a> {
         })
     }
 
-    pub fn remove(&self, key: &[u8]) -> Result<()> {
-        Self::verify_key(key)?;
-
-        let entry = self.index.lock(key);
-        if let Some(ptr) = entry.value {
-            self.volume.read(ptr, |strand| {
-                let stats = &mut strand.stats.lock();
-                stats.deleted_items += 1;
-            });
-
-            self.remove_item(key, ptr);
-        }
-
-        Ok(())
-    }
-
-    // Stats
+    /// Retrieves statistics about the current state of the datastore.
+    /// See [`Stats`] for more information about each field.
+    ///
+    /// [`Stats`]: struct.Stats.html
     #[inline]
     pub fn stats(&self) -> Stats {
         self.volume.stats()
