@@ -208,7 +208,7 @@ impl<'a> Store<'a> {
         let result = func(key, &mut val, &mut exists);
         self.volume.write(|strand| -> Result<()> {
             {
-                let stats = &mut strand.stats.get_mut();
+                let stats = strand.stats.get_mut();
                 if exists {
                     stats.valid_items += 1;
                 }
