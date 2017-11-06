@@ -7,6 +7,12 @@ os:
   - linux
   - osx
 
+before_install:
+  - [[ "$TRAVIS_OS_NAME" == 'linux' ]] && sudo apt-get update
+  - [[ "$TRAVIS_OS_NAME" == 'linux' ]] && sudo apt-get install -y capnproto
+  - [[ "$TRAVIS_OS_NAME" == 'mac' ]]   && brew update
+  - [[ "$TRAVIS_OS_NAME" == 'mac' ]]   && brew install capnp
+
 script:
   cargo build --verbose
 
