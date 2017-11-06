@@ -19,6 +19,14 @@
  *
  */
 
+//! StrikingDB, named after the illustrious [Rob Stolarz](https://github.com/robstolarz),
+//! is a persistent key/value store that is specifically optimized for solid state devices
+//! and flash technology, thought it can be used as in-memory only as well. Additionally,
+//! it is intended to be used in concurrent and multi-threaded applications.
+//!
+//! It is mostly ACID-compliant, supporting basic CRUD methods for interfacing with the
+//! datastore.
+
 #![warn(missing_docs)]
 
 extern crate capnp;
