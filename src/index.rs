@@ -66,7 +66,9 @@ impl<'i, 'k> Drop for IndexEntryGuard<'i, 'k> {
         {
             let tuple = map.get_mut(self.key).expect("Locked entry is now empty");
             let (ref mut ptr, ref mut locked) = *tuple;
+            debug_assert!(*locked, "Entry is unlocked");
 
+            // If entry is Some(_), update entry
             if let Some(new_ptr) = self.value {
                 *ptr = new_ptr;
                 *locked = false;
@@ -74,6 +76,7 @@ impl<'i, 'k> Drop for IndexEntryGuard<'i, 'k> {
             }
         }
 
+        // If entry is None, delete entry
         map.remove(self.key);
     }
 }
@@ -103,6 +106,10 @@ impl Index {
     pub fn from(map: IndexTree) -> Self {
         debug_assert!(Self::tree_valid(&map));
         Index(RwLock::new(map))
+    }
+
+    pub fn exists(&self, key: &[u8]) -> bool {
+        self.0.read().contains_key(key)
     }
 
     pub fn lock<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntryGuard<'i, 'k> {

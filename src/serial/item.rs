@@ -90,9 +90,11 @@ pub fn write_item(strand: &mut Strand, key: &[u8], val: &[u8]) -> Result<FilePoi
 
     // Write data
     let mut strand_writer = StrandWriter::new(strand);
+    let ptr = strand_writer.get_pointer();
+
     serialize_packed::write_message(&mut strand_writer, &message)?;
     strand_writer.write_metadata()?;
     strand_writer.flush()?;
 
-    Ok(strand_writer.get_pointer())
+    Ok(ptr)
 }
