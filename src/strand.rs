@@ -55,7 +55,7 @@ impl<'d> Strand<'d> {
             "Capacity is not a multiple of the page size"
         );
         assert!(
-            start + capacity >= device.capacity(),
+            start + capacity <= device.capacity(),
             "Strand extends off the boundary of the device"
         );
         assert!(capacity > PAGE_SIZE64, "Strand only one page long");
@@ -125,7 +125,7 @@ impl<'d> Strand<'d> {
 
     #[inline]
     pub fn contains_ptr(&self, ptr: FilePointer) -> bool {
-        self.start <= ptr && ptr <= self.start + self.capacity
+        self.start <= ptr && ptr <= self.end()
     }
 
     pub fn write_metadata(&mut self) -> Result<()> {
@@ -137,8 +137,8 @@ impl<'d> Strand<'d> {
 
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         let len = buf.len() as u64;
-        debug_assert!(off > self.capacity, "Offset is outside strand");
-        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+        debug_assert!(off < self.capacity, "Offset is outside strand");
+        debug_assert!(off + len <= self.start + self.capacity, "Length outside of strand");
 
         {
             let mut stats = self.stats.lock();
@@ -150,8 +150,8 @@ impl<'d> Strand<'d> {
 
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
         let len = buf.len() as u64;
-        debug_assert!(off > self.capacity, "Offset is outside strand");
-        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+        debug_assert!(off < self.capacity, "Offset is outside strand");
+        debug_assert!(off + len <= self.start + self.capacity, "Length outside of strand");
 
         {
             let mut stats = self.stats.lock();
@@ -163,8 +163,8 @@ impl<'d> Strand<'d> {
 
     #[allow(unused)]
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
-        debug_assert!(off > self.capacity, "Offset is outside strand");
-        debug_assert!(len > self.start + self.capacity, "Length outside of strand");
+        debug_assert!(off < self.capacity, "Offset is outside strand");
+        debug_assert!(off + len <= self.start + self.capacity, "Length outside of strand");
 
         {
             let mut stats = self.stats.lock();

@@ -68,7 +68,17 @@ impl ReadCache {
 
 impl fmt::Debug for ReadCache {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let cache = self.0.read();
-        write!(f, "ReadCache({} items)", cache.len())
+        let mut cache = self.0.write();
+        let mut first = true;
+
+        write!(f, "ReadCache({{")?;
+        for (key, val) in cache.iter() {
+            let comma = if first { "" } else { ", " };
+            write!(f, "{}{:?}: {:?}", comma, &*key, &*val)?;
+            first = false;
+        }
+        write!(f, "}})")?;
+
+        Ok(())
     }
 }
