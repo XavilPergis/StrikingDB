@@ -184,7 +184,8 @@ impl<'a> Store<'a> {
     }
 
     pub fn merge<F, R>(&self, key: &[u8], func: F) -> Result<R>
-        where F: FnOnce(&[u8], &mut Vec<u8>, &mut bool) -> R,
+    where
+        F: FnOnce(&[u8], &mut Vec<u8>, &mut bool) -> R,
     {
         Self::verify_key(key)?;
 
@@ -201,7 +202,7 @@ impl<'a> Store<'a> {
                 self.remove_item(key, ptr);
 
                 true
-            },
+            }
             None => false,
         };
 

@@ -224,7 +224,9 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
 
         // Write current block
         let off = block_align(self.cursor);
-        self.strand.write(off, &self.buffer[..]).map_err(to_io_error)?;
+        self.strand.write(off, &self.buffer[..]).map_err(
+            to_io_error,
+        )?;
         self.buffer.status = BufferStatus::Clean;
 
         Ok(())
