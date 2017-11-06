@@ -1,5 +1,5 @@
 /*
- * buffer/block.rs
+ * buffer/buffer.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,50 +19,46 @@
  *
  */
 
-use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::cmp::min;
 use std::ops::{Deref, DerefMut};
-use super::{TRIM_SIZE, ByteArray};
+use super::{ByteArray, BufferStatus};
 
-#[derive(Clone)]
-pub struct Block([u8; TRIM_SIZE]);
+#[derive(Debug, Clone, Hash)]
+pub struct Buffer<B: ByteArray> {
+    pub bytes: B,
+    pub status: BufferStatus,
+}
 
-impl Default for Block {
-    fn default() -> Self {
-        Block([0; TRIM_SIZE])
+impl<B: ByteArray> Buffer<B> {
+    pub fn new() -> Self {
+        Buffer {
+            bytes: B::default(),
+            status: BufferStatus::Empty,
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.status = BufferStatus::Empty;
     }
 }
 
-impl Deref for Block {
+impl<B: ByteArray> Deref for Buffer<B> {
     type Target = [u8];
 
     fn deref(&self) -> &[u8] {
-        &self.0[..]
+        &*self.bytes
     }
 }
 
-impl DerefMut for Block {
+impl<B: ByteArray> DerefMut for Buffer<B> {
     fn deref_mut(&mut self) -> &mut [u8] {
-        &mut self.0[..]
+        &mut *self.bytes
     }
 }
 
-impl AsRef<[u8]> for Block {
-    fn as_ref(&self) -> &[u8] {
-        &self.0[..]
+impl<B: ByteArray> Default for Buffer<B> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
     }
 }
-
-impl Hash for Block {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(&self.0[..]);
-    }
-}
-
-impl fmt::Debug for Block {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Block: {:?}..", &self.0[..16])
-    }
-}
-
-impl ByteArray for Block {}

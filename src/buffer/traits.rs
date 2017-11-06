@@ -1,5 +1,5 @@
 /*
- * buffer/mod.rs
+ * buffer/traits.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -19,21 +19,13 @@
  *
  */
 
-mod block;
-mod buffer;
-mod page;
-mod traits;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::ops::DerefMut;
 
-use super::{PAGE_SIZE, TRIM_SIZE};
-
-pub use self::block::Block;
-pub use self::buffer::Buffer;
-pub use self::page::Page;
-pub use self::traits::ByteArray;
-
-#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
-pub enum BufferStatus {
-    Clean,
-    Dirty,
-    Empty,
+pub trait ByteArray
+where
+    Self: DerefMut<Target = [u8]>,
+    Self: Default + Debug + Clone + Hash
+{
 }

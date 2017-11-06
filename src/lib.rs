@@ -5,7 +5,8 @@
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
  *
  * striking-db is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 2 of
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 2 of
  * the License, or (at your option) any later version.
  *
  * striking-db is distributed in the hope that it will be useful,
@@ -31,7 +32,6 @@ extern crate cfg_if;
 
 #[macro_use]
 extern crate lazy_static;
-
 extern crate lru_time_cache;
 extern crate num_cpus;
 extern crate parking_lot;
