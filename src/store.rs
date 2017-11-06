@@ -32,6 +32,17 @@ use super::error::Error;
 use super::volume::Volume;
 use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
+/// Represents an open handle to a datastore.
+///
+/// This handle is thread-safe, and thus, is both [`Send`] and [`Sync`],
+/// and only requires a `&self` in order to operate on it.
+///
+/// ## Panics
+/// When dropped, it writes the current state of the indexer and deleted
+/// items. If this fails, the destructor will panic.
+///
+/// [`Send`]: https://doc.rust-lang.org/stable/std/marker/trait.Send.html
+/// [`Sync`]: https://doc.rust-lang.org/stable/std/marker/trait.Sync.html
 #[derive(Debug)]
 pub struct Store<'a> {
     volume: Volume<'a>,
