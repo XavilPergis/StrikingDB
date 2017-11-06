@@ -32,7 +32,6 @@ extern crate parking_lot;
 
 #[macro_use]
 extern crate rental;
-extern crate stable_deref_trait;
 
 /* Platform-specific dependencies */
 cfg_if! {
