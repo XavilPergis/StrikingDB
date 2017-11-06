@@ -183,6 +183,53 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    pub fn merge<F, R>(&self, key: &[u8], func: F) -> Result<R>
+        where F: FnOnce(&[u8], &mut Vec<u8>, &mut bool) -> R,
+    {
+        Self::verify_key(key)?;
+
+        let mut entry = self.index.lock(key);
+        let mut val = Vec::new();
+        let mut exists = match entry.value {
+            Some(ptr) => {
+                self.volume.read(ptr, |strand| {
+                    read_item(strand, ptr, |ctx| {
+                        val = Vec::from(ctx.val()?);
+                        Ok(())
+                    })
+                })?;
+                self.remove_item(key, ptr);
+
+                true
+            },
+            None => false,
+        };
+
+        let result = func(key, &mut val, &mut exists);
+        self.volume.write(|strand| -> Result<()> {
+            {
+                let stats = &mut strand.stats.get_mut();
+                if exists {
+                    stats.valid_items += 1;
+                }
+                if entry.exists() {
+                    stats.deleted_items += 1;
+                }
+            }
+
+            entry.value = if exists {
+                let ptr = write_item(strand, key, val.as_slice())?;
+                Some(ptr)
+            } else {
+                None
+            };
+
+            Ok(())
+        })?;
+
+        Ok(result)
+    }
+
     // Delete
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
