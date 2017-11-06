@@ -20,3 +20,6 @@ stable_deref_trait = "1"
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.2"

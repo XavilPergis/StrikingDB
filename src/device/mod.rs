@@ -19,14 +19,49 @@
  *
  */
 
+use std::fmt::Debug;
+use super::*;
+
+mod memory;
+pub use self::memory::Memory;
+
 cfg_if! {
     if #[cfg(unix)] {
         mod unix;
-        pub use self::unix::Device;
+        pub use self::unix::Ssd;
     } else if #[cfg(windows)] {
         mod windows;
-        pub use self::windows::Device;
+        pub use self::windows::Ssd;
     }
 }
 
-use super::*;
+pub trait Device: Debug {
+    fn capacity(&self) -> u64;
+    fn block_device(&self) -> bool;
+    fn read(&self, off: u64, buf: &mut [u8]) -> Result<()>;
+    fn write(&self, off: u64, buf: &[u8]) -> Result<()>;
+    fn trim(&self, off: u64, len: u64) -> Result<()>;
+}
+
+#[inline(always)]
+fn check_read(dev: &Device, off: u64, buf: &[u8]) {
+    let len = buf.len() as u64;
+    assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
+    assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
+    assert!(off + len < dev.capacity(), "Read is out of bounds");
+}
+
+#[inline(always)]
+fn check_write(dev: &Device, off: u64, buf: &[u8]) {
+    let len = buf.len() as u64;
+    assert_eq!(off % PAGE_SIZE64, 0, "Offset not a multiple of the page size");
+    assert_eq!(len % PAGE_SIZE64, 0, "Length not a multiple of the page size");
+    assert!(off + len < dev.capacity(), "Write is out of bounds");
+}
+
+#[inline(always)]
+fn check_trim(dev: &Device, off: u64, len: u64) {
+    assert_eq!(off % TRIM_SIZE64, 0, "Offset not a multiple of the trim size");
+    assert_eq!(len % TRIM_SIZE64, 0, "Length not a multiple of the trim size");
+    assert!(off + len < dev.capacity(), "Trim is out of bounds");
+}

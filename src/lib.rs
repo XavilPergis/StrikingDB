@@ -19,12 +19,6 @@
  *
  */
 
-// FIXME: remove in final version, this is just here so
-// `chargo check`ing doesn't flood the terminal with warnings
-// about unused code
-#![allow(dead_code)]
-#![allow(unused)]
-
 extern crate capnp;
 
 #[macro_use]
@@ -40,16 +34,24 @@ extern crate parking_lot;
 extern crate rental;
 extern crate stable_deref_trait;
 
-#[cfg(unix)]
-#[macro_use]
-extern crate nix;
+/* Platform-specific dependencies */
+cfg_if! {
+    if #[cfg(unix)] {
+        #[macro_use]
+        extern crate nix;
+    } else if #[cfg(windows)] {
+        extern crate winapi;
+    }
+}
 
 /* Generated sources */
 mod build {
+    #![allow(unused)]
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 mod serial_capnp {
+    #![allow(unused)]
     include!(concat!(env!("OUT_DIR"), "/serial_capnp.rs"));
 }
 

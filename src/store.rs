@@ -27,30 +27,41 @@ use serial::{DatastoreState, read_item, write_item};
 use stats::Stats;
 use std::fs::File;
 use strand::Strand;
-use super::device::Device;
+use super::device::{Ssd, Memory};
 use super::error::Error;
 use super::volume::Volume;
 use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
 #[derive(Debug)]
-pub struct Store {
-    volume: Volume,
+pub struct Store<'a> {
+    volume: Volume<'a>,
     index: Index,
     deleted: Deleted,
     cache: ReadCache,
 }
 
-impl Store {
-    // Create
+impl<'a> Store<'a> {
     pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
-        let device = Device::open(file)?;
-        let (volume, state) = Volume::open(device, options)?;
+        let ssd = Ssd::open(file)?;
+        let (volume, state) = Volume::open(Box::new(ssd), options)?;
         let (index, deleted) = state.extract();
 
         Ok(Store {
             volume: volume,
             index: index,
             deleted: deleted,
+            cache: ReadCache::new(),
+        })
+    }
+
+    pub fn memory(bytes: usize, options: &OpenOptions) -> Result<Self> {
+        let memory = Memory::new(bytes);
+        let (volume, _) = Volume::open(Box::new(memory), options)?;
+
+        Ok(Store {
+            volume: volume,
+            index: Index::new(),
+            deleted: Deleted::new(),
             cache: ReadCache::new(),
         })
     }
@@ -217,14 +228,14 @@ impl Store {
         self.volume.stats()
     }
 
-    #[inline]
-    pub fn items(&self) -> usize {
-        self.index.count()
-    }
-
     // Helpers
-    fn lookup_item(&self, strand: &Strand, ptr: FilePointer, val: &mut [u8]) -> Result<usize> {
-        read_item(strand, ptr, |ctx| ctx.copy_val(val))
+    fn lookup_item(&self, strand: &Strand, ptr: FilePointer, buf: &mut [u8]) -> Result<usize> {
+        read_item(strand, ptr, |ctx| {
+            let key = ctx.key()?;
+            let val = ctx.val()?;
+            self.cache.insert(key, val);
+            ctx.copy_val(buf)
+        })
     }
 
     fn remove_item(&self, key: &[u8], ptr: FilePointer) {
@@ -237,17 +248,17 @@ impl Store {
         let deleted = self.deleted.get_mut();
 
         self.volume.write(|strand| {
-            let state = DatastoreState::new(index, deleted);
+            let state = DatastoreState::new(index, deleted)?;
             state.write(strand)
         })
     }
 }
 
-impl Drop for Store {
+impl<'a> Drop for Store<'a> {
     fn drop(&mut self) {
         self.write_state().expect("Writing datastore state failed");
     }
 }
 
-unsafe impl Send for Store {}
-unsafe impl Sync for Store {}
+unsafe impl<'a> Send for Store<'a> {}
+unsafe impl<'a> Sync for Store<'a> {}

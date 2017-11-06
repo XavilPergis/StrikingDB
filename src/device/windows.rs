@@ -20,5 +20,55 @@
  */
 
 // TODO
+
+use std::fs::File;
+use std::os::windows::prelude::*;
+use super::{Device, Result};
+
 #[derive(Debug)]
-pub struct Device;
+pub struct Ssd {
+    file: File,
+    capacity: u64,
+    block: bool,
+}
+
+impl Ssd {
+    fn get_metadata(file: &mut File) -> Result<(u64, bool)> {
+        let metadata = file.metadata()?;
+        unimplemented!();
+    }
+
+    pub fn open(mut file: File) -> Result<Self> {
+        let (capacity, block) = Self::get_metadata()?;
+
+        Ok(Ssd {
+            file: file,
+            capacity: capacity,
+            block: block,
+        })
+    }
+}
+
+impl Device for Ssd {
+    #[inline]
+    fn capacity(&self) -> u64 {
+        self.capacity
+    }
+
+    #[inline]
+    fn block_device(&self) -> bool {
+        unimplemented!();
+    }
+
+    fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
+        unimplemented!();
+    }
+
+    fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
+        unimplemented!();
+    }
+
+    fn trim(&self, off: u64, len: u64) -> Result<()> {
+        unimplemented!();
+    }
+}

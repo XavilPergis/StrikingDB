@@ -24,8 +24,7 @@ use device::Device;
 use parking_lot::Mutex;
 use serial::StrandHeader;
 use stats::Stats;
-use std::ops::Deref;
-use super::{PAGE_SIZE, PAGE_SIZE64, FilePointer, Result};
+use super::{PAGE_SIZE64, FilePointer, Result};
 
 #[derive(Debug)]
 pub struct Strand<'d> {
@@ -72,7 +71,7 @@ impl<'d> Strand<'d> {
             } else {
                 // Format strand
                 let header = StrandHeader::new(id, capacity);
-                header.write(&mut page);
+                header.write(&mut page)?;
                 device.write(0, &page[..])?;
 
                 PAGE_SIZE64
@@ -132,7 +131,7 @@ impl<'d> Strand<'d> {
     pub fn write_metadata(&mut self) -> Result<()> {
         let mut page = Page::default();
         let header = StrandHeader::from(self);
-        header.write(&mut page);
+        header.write(&mut page)?;
         self.write(0, &page[..])
     }
 
@@ -162,6 +161,7 @@ impl<'d> Strand<'d> {
         self.device.write(self.start + off, buf)
     }
 
+    #[allow(unused)]
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off > self.capacity, "Offset is outside strand");
         debug_assert!(len > self.start + self.capacity, "Length outside of strand");

@@ -19,7 +19,7 @@
  *
  */
 
-use capnp::message::{Builder, Reader, ReaderOptions};
+use capnp::message::{Builder, ReaderOptions};
 use capnp::serialize_packed;
 use std::cmp::min;
 use std::io::Write;
@@ -54,6 +54,7 @@ impl<'a> ReadContext<'a> {
     }
 
     #[inline]
+    #[allow(unused)]
     pub fn copy_key(&self, key_buf: &mut [u8]) -> Result<usize> {
         let slice = self.0.get_key()?;
         Ok(Self::copy_slice(slice, key_buf))
