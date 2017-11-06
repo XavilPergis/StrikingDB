@@ -73,6 +73,7 @@ type FilePointer = u64;
 
 /* Reexports */
 pub use error::{Error, Result};
+pub use stats::Stats;
 pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
 
