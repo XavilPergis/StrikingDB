@@ -35,6 +35,11 @@ impl<B: ByteArray> Buffer<B> {
             status: BufferStatus::Empty,
         }
     }
+
+    #[allow(dead_code)]
+    pub fn reset(&mut self) {
+        self.status = BufferStatus::Empty;
+    }
 }
 
 impl<B: ByteArray> Deref for Buffer<B> {
