@@ -209,19 +209,17 @@ impl<'a> Store<'a> {
         self.volume.write(|strand| -> Result<()> {
             {
                 let stats = strand.stats.get_mut();
-                if exists {
-                    stats.valid_items += 1;
-                }
                 if entry.exists() {
                     stats.deleted_items += 1;
                 }
+                if exists {
+                    stats.valid_items += 1;
+                }
             }
 
-            entry.value = if exists {
-                let ptr = write_item(strand, key, val.as_slice())?;
-                Some(ptr)
-            } else {
-                None
+            entry.value = match exists {
+                true => Some(write_item(strand, key, val.as_slice())?),
+                false => None,
             };
 
             Ok(())
