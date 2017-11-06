@@ -19,6 +19,8 @@
  *
  */
 
+#![warn(missing_docs)]
+
 extern crate capnp;
 
 #[macro_use]
