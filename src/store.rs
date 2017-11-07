@@ -32,6 +32,17 @@ use stats::Stats;
 use std::path::Path;
 use strand::Strand;
 
+/// Represents an open handle to a datastore.
+///
+/// This handle is thread-safe, and thus, is both [`Send`] and [`Sync`],
+/// and only requires a `&self` in order to operate on it.
+///
+/// ## Panics
+/// When dropped, it writes the current state of the indexer and deleted
+/// items. If this fails, the destructor will panic.
+///
+/// [`Send`]: https://doc.rust-lang.org/stable/std/marker/trait.Send.html
+/// [`Sync`]: https://doc.rust-lang.org/stable/std/marker/trait.Sync.html
 #[derive(Debug)]
 pub struct Store<'a> {
     volume: Volume<'a>,
@@ -85,7 +96,15 @@ impl<'a> Store<'a> {
         }
     }
 
-    // Read
+    /// Gets the given item in the datastore.
+    ///
+    /// This method searches for the item associated with the passed
+    /// `key`. If found, then as much of the value as will fit is
+    /// copied into `val`, and the number of bytes written is returned.
+    ///
+    /// If there is no such item, then [`Error::ItemNotFound`] is returned.
+    ///
+    /// [`Error::ItemNotFound`]: enum.Error.html
     pub fn lookup(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
@@ -105,11 +124,21 @@ impl<'a> Store<'a> {
         )
     }
 
+    /// Checks if the given item exists in the datastore.
+    /// This is a fast check, since it only inspects the
+    /// in-memory index, and does not need to go to disk
+    /// to fetch any data.
     pub fn exists(&self, key: &[u8]) -> bool {
         self.index.exists(key)
     }
 
-    // Update
+    /// Inserts an item into the datastore.
+    ///
+    /// This method will insert the item associated with the passed
+    /// `key`, failing with [`Error::ItemExists`] if there is already
+    /// such an item in the datastore.
+    ///
+    /// [`Error::ItemExists`]: enum.Error.html
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
@@ -132,6 +161,13 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    /// Updates an item in the datastore.
+    ///
+    /// This method will update the item associated with the passed
+    /// `key` with the provided `val`. If there is no such item,
+    /// then [`Error::ItemNotFound`] is returned.
+    ///
+    /// [`Error::ItemNotFound`]: enum.Error.html
     pub fn update(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
@@ -157,6 +193,11 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    /// Puts an item in the datastore.
+    ///
+    /// This method will place the provided key/value pair into the
+    /// datastore, regardless of whether or not such an item existed
+    /// before.
     pub fn put(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
@@ -182,20 +223,86 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    /// Removes an item from the datastore.
+    ///
+    /// This will remove the data associated with the
+    /// given key from the datastore. It is not an error
+    /// if the item doesn't exist.
+    ///
+    /// Note that the data may not be deleted from disk,
+    /// but rather it is flagged for removal when
+    /// vacuuming occurs.
+    pub fn remove(&self, key: &[u8]) -> Result<()> {
+        Self::verify_key(key)?;
+
+        let entry = self.index.lock(key);
+        if let Some(ptr) = entry.value {
+            self.volume.read(ptr, |strand| {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            });
+
+            self.remove_item(key, ptr);
+        }
+
+        Ok(())
+    }
+
+    /// Deletes an item from the datastore, retrieving it's value data.
+    ///
+    /// This will remove the item from the datastore, and retrieve its
+    /// value before deletion, copying as much as can fit into the buffer.
+    /// The number of bytes is returned. (See [`lookup`]).
+    ///
+    /// If the item does not exist, then [`Error::ItemNotFound`] is returned.
+    ///
+    /// Note that the data may not be deleted from disk,
+    /// but rather it is flagged for removal when
+    /// vacuuming occurs.
+    ///
+    /// [`Error::ItemNotFound`]: enum.Error.html
+    /// [`lookup`]: #method.lookup
+    pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
+        Self::verify_key(key)?;
+
+        let mut entry = self.index.lock(key);
+        let ptr = match entry.value {
+            Some(ptr) => ptr,
+            None => return Err(Error::ItemNotFound),
+        };
+
+        self.remove_item(key, ptr);
+        entry.value = None;
+
+        if let Some(len) = self.cache.get(key, val) {
+            return Ok(len);
+        }
+
+        self.volume.read(ptr, |strand| {
+            {
+                let stats = &mut strand.stats.lock();
+                stats.deleted_items += 1;
+            }
+
+            self.lookup_item(strand, ptr, val)
+        })
+    }
+
     /// Performs an atomic read-modify-write on the given item.
-    /// This method takes the key to act upon, and a closure.
-    /// The closure is passed three arguments: the key, the value
-    /// buffer, and a boolean reference.
     ///
-    /// If the item already exists in the datastore, then the
-    /// value vector is filled with its current value, and
-    /// "exists" is set to `true`. Otherwise the vector is
-    /// empty and "exists" is set to `false`.
+    /// The closure takes an option containing the value buffer,
+    /// and returns an option containing a potentially modified
+    /// buffer. The input is `Some` if there is an associated
+    /// on disk, and `None` if there isn't. The table below shows
+    /// the behavior of this function for different combinations
+    /// of inputs and outputs:
     ///
-    /// After the execution of the closure, the value of the boolean
-    /// is inspected. If it is true, then the item is inserted / updated
-    /// with the given value in the vector. If it is false, the item is
-    /// deleted.
+    /// |    Input   |    Output   | Behavior                                |
+    /// |:----------:|:-----------:|-----------------------------------------|
+    /// |   `None`   |    `None`   | Nothing                                 |
+    /// |   `None`   | `Some(buf)` | Entry will be inserted with value `buf` |
+    /// |  `Some(_)` |    `None`   | Entry will be deleted                   |
+    /// |  `Some(_)` | `Some(buf)` | Entry will be updated with value `buf`  |
     ///
     /// As this method has forms of handling for all cases of item
     /// existence / non-existence, it will never return
@@ -251,51 +358,10 @@ impl<'a> Store<'a> {
         })
     }
 
-    // Delete
-    pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
-        Self::verify_key(key)?;
-
-        let mut entry = self.index.lock(key);
-        let ptr = match entry.value {
-            Some(ptr) => ptr,
-            None => return Err(Error::ItemNotFound),
-        };
-
-        self.remove_item(key, ptr);
-        entry.value = None;
-
-        if let Some(len) = self.cache.get(key, val) {
-            return Ok(len);
-        }
-
-        self.volume.read(ptr, |strand| {
-            {
-                let stats = &mut strand.stats.lock();
-                stats.deleted_items += 1;
-            }
-
-            self.lookup_item(strand, ptr, val)
-        })
-    }
-
-    pub fn remove(&self, key: &[u8]) -> Result<()> {
-        Self::verify_key(key)?;
-
-        let mut entry = self.index.lock(key);
-        if let Some(ptr) = entry.value {
-            self.volume.read(ptr, |strand| {
-                let stats = &mut strand.stats.lock();
-                stats.deleted_items += 1;
-            });
-
-            self.remove_item(key, ptr);
-            entry.value = None;
-        }
-
-        Ok(())
-    }
-
-    // Stats
+    /// Retrieves statistics about the current state of the datastore.
+    /// See [`Stats`] for more information about each field.
+    ///
+    /// [`Stats`]: struct.Stats.html
     #[inline]
     pub fn stats(&self) -> Stats {
         self.volume.stats()

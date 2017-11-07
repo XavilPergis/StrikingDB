@@ -21,14 +21,31 @@
 
 use std::ops::AddAssign;
 
+/// Stores statistics related to the current state of a datastore.
 #[derive(Debug, Hash, Clone, Default, PartialEq, Eq)]
 pub struct Stats {
+    /// The total number of bytes read from the device.
     pub read_bytes: u64,
+
+    /// The total number of bytes written from the device.
     pub written_bytes: u64,
+
+    /// The total number of bytes trimmed on the device.
     pub trimmed_bytes: u64,
+
+    /// The number of bytes logically read from the device.
+    /// This value should be smaller than `read_bytes`.
     pub buffer_read_bytes: u64,
+
+    /// The number of bytes logically written to the device.
+    /// This value should be smaller than `written_bytes`.
     pub buffer_written_bytes: u64,
+
+    /// The number of valid items in the datastore.
     pub valid_items: u64,
+
+    /// The number of deleted items in the datastore that
+    /// have not been vacuumed yet.
     pub deleted_items: u64,
 }
 

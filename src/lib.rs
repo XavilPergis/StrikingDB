@@ -19,6 +19,16 @@
  *
  */
 
+//! StrikingDB, named after the illustrious [Rob Stolarz](https://github.com/robstolarz),
+//! is a persistent key/value store that is specifically optimized for solid state devices
+//! and flash technology, thought it can be used as in-memory only as well. Additionally,
+//! it is intended to be used in concurrent and multi-threaded applications.
+//!
+//! It is mostly ACID-compliant, supporting basic CRUD methods for interfacing with the
+//! datastore.
+
+#![warn(missing_docs)]
+
 extern crate capnp;
 
 #[macro_use]
@@ -75,14 +85,20 @@ type FilePointer = u64;
 
 pub use error::{Error, Result};
 pub use options::{OpenMode, OpenOptions};
+pub use stats::Stats;
 pub use store::Store;
 
-/* Constants */
+/// The version of this crate, as a string.
 pub const VERSION_STR: &'static str = build::PKG_VERSION;
 
+/// The maximum size for a valid key (128 KiB). Also note that valid
+/// keys may not have a length of zero.
 pub const MAX_KEY_LEN: usize = 128 * 1024 * 1024; /* 128 KiB */
+
+/// The maximum size of a valid value (512 MiB).
 pub const MAX_VAL_LEN: usize = 512 * 1024 * 1024 * 1024; /* 512 MiB */
 
+/// The minimum number of strands that a datastore can be created with.
 pub const MIN_STRANDS: u16 = 2;
 
 const PAGE_SIZE: usize = 4 * 1024;
@@ -92,6 +108,8 @@ const PAGE_SIZE64: u64 = PAGE_SIZE as u64;
 const TRIM_SIZE64: u64 = TRIM_SIZE as u64;
 
 lazy_static! {
+    /// A lazily-initialized struct that contains a 3-tuple, in the
+    /// form `(major, minor, patch)`.
     pub static ref VERSION: (u8, u8, u8) = {
         let major = build::PKG_VERSION_MAJOR.parse::<u8>().unwrap();
         let minor = build::PKG_VERSION_MINOR.parse::<u8>().unwrap();
