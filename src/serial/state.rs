@@ -20,6 +20,7 @@
  */
 
 use self::rentals::DatastoreStateRental;
+use parking_lot::RwLock;
 use super::{FilePointer, Result, StrandReader, StrandWriter};
 use super::deleted::{Deleted, DeletedSet};
 use super::index::{Index, IndexTree};
@@ -59,7 +60,8 @@ impl DatastoreState {
                 let map = state.borrow().init_index();
                 let mut list = map.init_entries(index.len() as u32);
 
-                for (i, (key, &(ptr, _))) in index.iter().enumerate() {
+                for (i, (key, lock)) in index.iter().enumerate() {
+                    let ptr = *lock.read();
                     let mut entry = list.borrow().get(i as u32);
                     entry.set_key(&**key)?;
                     entry.init_value().set_pointer(ptr);
@@ -106,7 +108,7 @@ impl DatastoreState {
 
                 let ptr = entry.get_value()?.get_pointer();
 
-                if let Some(_) = index.insert(key, (ptr, false)) {
+                if let Some(_) = index.insert(key, RwLock::new(ptr)) {
                     // Duplicate item in index
                     return Err(Error::Corrupt);
                 }
