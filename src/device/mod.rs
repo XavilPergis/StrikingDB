@@ -19,8 +19,10 @@
  *
  */
 
-use std::fmt::Debug;
 use super::*;
+use std::fmt::Debug;
+use std::fs::{File, OpenOptions};
+use std::path::Path;
 
 mod memory;
 pub use self::memory::Memory;
@@ -56,7 +58,7 @@ fn check_read(dev: &Device, off: u64, buf: &[u8]) {
         0,
         "Length not a multiple of the page size"
     );
-    assert!(off + len < dev.capacity(), "Read is out of bounds");
+    assert!(off + len <= dev.capacity(), "Read is out of bounds");
 }
 
 #[inline(always)]
@@ -72,7 +74,7 @@ fn check_write(dev: &Device, off: u64, buf: &[u8]) {
         0,
         "Length not a multiple of the page size"
     );
-    assert!(off + len < dev.capacity(), "Write is out of bounds");
+    assert!(off + len <= dev.capacity(), "Write is out of bounds");
 }
 
 #[inline(always)]
@@ -87,5 +89,12 @@ fn check_trim(dev: &Device, off: u64, len: u64) {
         0,
         "Length not a multiple of the trim size"
     );
-    assert!(off + len < dev.capacity(), "Trim is out of bounds");
+    assert!(off + len <= dev.capacity(), "Trim is out of bounds");
+}
+
+#[inline]
+fn open_file(path: &Path) -> Result<File> {
+    let file = OpenOptions::new().read(true).write(true).open(path)?;
+
+    Ok(file)
 }

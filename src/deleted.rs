@@ -19,9 +19,9 @@
  *
  */
 
+use super::FilePointer;
 use parking_lot::RwLock;
 use std::collections::BTreeSet;
-use super::FilePointer;
 
 pub type DeletedSet = BTreeSet<FilePointer>;
 
@@ -39,7 +39,7 @@ impl Deleted {
 
     pub fn add(&self, value: FilePointer) {
         let exists = self.0.write().insert(value);
-        assert!(!exists, "Deleted item already tracked");
+        assert_eq!(exists, true, "Deleted item already tracked");
     }
 
     pub fn get_mut(&mut self) -> &mut DeletedSet {

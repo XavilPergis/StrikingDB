@@ -19,6 +19,8 @@
  *
  */
 
+use self::rentals::VolumeRental;
+use super::{MIN_STRANDS, PAGE_SIZE64, FilePointer, Result};
 use buffer::Page;
 use deleted::Deleted;
 use device::Device;
@@ -27,14 +29,12 @@ use index::Index;
 use num_cpus;
 use options::OpenOptions;
 use parking_lot::RwLock;
-use self::rentals::VolumeRental;
 use serial::{DatastoreState, VolumeHeader};
 use stats::Stats;
 use std::cmp::{Ordering, min};
 use std::time::Duration;
 use std::u16;
 use strand::Strand;
-use super::{MIN_STRANDS, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ impl VolumeOpen {
             }
             None => {
                 let cores = num_cpus::get() as u64;
-                8 * cores * dev.capacity() / GB
+                cores * dev.capacity() / GB
             }
         };
         assert_ne!(count, 0, "Strand count must be nonzero");
@@ -141,7 +141,7 @@ impl<'a> Volume<'a> {
             }
 
             // Divide device into strands
-            let mut left = device.capacity();
+            let mut left = device.capacity() - PAGE_SIZE64;
             let size = align(device.capacity() / open.strands as u64);
 
             let mut strands = Vec::with_capacity(open.strands as usize);
@@ -188,18 +188,19 @@ impl<'a> Volume<'a> {
             // Search for the strand that has this file pointer
             let result = strands.binary_search_by(|strand| {
                 let guard = strand.read();
+
                 if ptr < guard.start() {
-                    Ordering::Less
-                } else if ptr < guard.end() {
+                    Ordering::Greater
+                } else if ptr <= guard.end() {
                     Ordering::Equal
                 } else {
-                    Ordering::Greater
+                    Ordering::Less
                 }
             });
 
             let guard = match result {
                 Ok(idx) => strands[idx].read(),
-                Err(_) => panic!("File pointer 0x{:x} is not in any strand", ptr),
+                Err(_) => panic!("File pointer {:#x} is not in any strand", ptr),
             };
 
             func(&*guard)

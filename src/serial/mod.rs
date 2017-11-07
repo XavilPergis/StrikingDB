@@ -25,9 +25,9 @@ mod io;
 mod item;
 mod state;
 
-use super::*;
 
 pub use self::header::{StrandHeader, VolumeHeader};
 pub use self::io::{StrandReader, StrandWriter};
 pub use self::item::{ReadContext, read_item, write_item};
 pub use self::state::DatastoreState;
+use super::*;

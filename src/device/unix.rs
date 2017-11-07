@@ -23,9 +23,10 @@ use nix::libc;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::os::unix::prelude::*;
+use std::path::Path;
 use super::utils::align;
 use super::{Device, Error, Result};
-use super::{check_read, check_write, check_trim};
+use super::{check_read, check_write, check_trim, open_file};
 
 mod ioctl {
     const BLK: u8 = 0x12;
@@ -63,7 +64,8 @@ impl Ssd {
         }
     }
 
-    pub fn open(mut file: File) -> Result<Self> {
+    pub fn open(path: &Path) -> Result<Self> {
+        let mut file = open_file(path)?;
         let (capacity, block) = Self::get_metadata(&mut file)?;
 
         Ok(Ssd {

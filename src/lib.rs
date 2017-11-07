@@ -72,9 +72,10 @@ mod volume;
 type FilePointer = u64;
 
 /* Reexports */
+
 pub use error::{Error, Result};
-pub use store::Store;
 pub use options::{OpenMode, OpenOptions};
+pub use store::Store;
 
 /* Constants */
 pub const VERSION_STR: &'static str = build::PKG_VERSION;

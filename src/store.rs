@@ -19,18 +19,18 @@
  *
  */
 
+use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
+use super::device::{Ssd, Memory};
+use super::error::Error;
+use super::volume::Volume;
 use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
 use options::OpenOptions;
 use serial::{DatastoreState, read_item, write_item};
 use stats::Stats;
-use std::fs::File;
+use std::path::Path;
 use strand::Strand;
-use super::device::{Ssd, Memory};
-use super::error::Error;
-use super::volume::Volume;
-use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
 #[derive(Debug)]
 pub struct Store<'a> {
@@ -41,8 +41,8 @@ pub struct Store<'a> {
 }
 
 impl<'a> Store<'a> {
-    pub fn open(file: File, options: &OpenOptions) -> Result<Self> {
-        let ssd = Ssd::open(file)?;
+    pub fn open<P: AsRef<Path>>(path: P, options: &OpenOptions) -> Result<Self> {
+        let ssd = Ssd::open(path.as_ref())?;
         let (volume, state) = Volume::open(Box::new(ssd), options)?;
         let (index, deleted) = state.extract();
 
@@ -105,6 +105,10 @@ impl<'a> Store<'a> {
         )
     }
 
+    pub fn exists(&self, key: &[u8]) -> bool {
+        self.index.exists(key)
+    }
+
     // Update
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
@@ -158,11 +162,6 @@ impl<'a> Store<'a> {
         Self::verify_val(val)?;
 
         let mut entry = self.index.lock(key);
-        let old_ptr = match entry.value {
-            Some(ptr) => ptr,
-            None => return Err(Error::ItemNotFound),
-        };
-
         let ptr = self.volume.write(|strand| {
             {
                 let stats = &mut strand.stats.lock();
@@ -175,7 +174,7 @@ impl<'a> Store<'a> {
             write_item(strand, key, val)
         })?;
 
-        if entry.exists() {
+        if let Some(old_ptr) = entry.value {
             self.remove_item(key, old_ptr);
         }
 
@@ -256,13 +255,15 @@ impl<'a> Store<'a> {
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
-        let entry = self.index.lock(key);
+        let mut entry = self.index.lock(key);
         let ptr = match entry.value {
             Some(ptr) => ptr,
             None => return Err(Error::ItemNotFound),
         };
 
         self.remove_item(key, ptr);
+        entry.value = None;
+
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
         }
@@ -280,7 +281,7 @@ impl<'a> Store<'a> {
     pub fn remove(&self, key: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
 
-        let entry = self.index.lock(key);
+        let mut entry = self.index.lock(key);
         if let Some(ptr) = entry.value {
             self.volume.read(ptr, |strand| {
                 let stats = &mut strand.stats.lock();
@@ -288,6 +289,7 @@ impl<'a> Store<'a> {
             });
 
             self.remove_item(key, ptr);
+            entry.value = None;
         }
 
         Ok(())

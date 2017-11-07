@@ -19,9 +19,9 @@
  *
  */
 
-use parking_lot::RwLock;
 use super::{Device, Result};
 use super::{check_read, check_write, check_trim};
+use parking_lot::RwLock;
 
 #[derive(Debug)]
 pub struct Memory(RwLock<Box<[u8]>>, u64);
