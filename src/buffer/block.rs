@@ -24,8 +24,19 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use super::{TRIM_SIZE, ByteArray};
 
-#[derive(Clone)]
 pub struct Block([u8; TRIM_SIZE]);
+
+// FIXME: We can derive clone once const generics land
+impl Clone for Block {
+   fn clone(&self) -> Self {
+        let mut copy: [u8; TRIM_SIZE] = unsafe { ::std::mem::uninitialized() };
+        {
+            let mut dest = &mut copy[..];
+            dest.copy_from_slice(&self[..]);
+        }
+        Block(copy)
+    }
+}
 
 impl Default for Block {
     fn default() -> Self {
