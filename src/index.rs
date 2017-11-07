@@ -19,11 +19,11 @@
  *
  */
 
+use super::{MAX_KEY_LEN, FilePointer};
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::thread;
-use super::{MAX_KEY_LEN, FilePointer};
 
 pub type IndexTree = BTreeMap<Box<[u8]>, (FilePointer, bool)>;
 

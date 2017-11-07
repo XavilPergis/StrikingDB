@@ -19,6 +19,10 @@
  *
  */
 
+use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
+use super::device::{Ssd, Memory};
+use super::error::Error;
+use super::volume::Volume;
 use cache::ReadCache;
 use deleted::Deleted;
 use index::Index;
@@ -27,10 +31,6 @@ use serial::{DatastoreState, read_item, write_item};
 use stats::Stats;
 use std::path::Path;
 use strand::Strand;
-use super::device::{Ssd, Memory};
-use super::error::Error;
-use super::volume::Volume;
-use super::{MAX_KEY_LEN, MAX_VAL_LEN, FilePointer, Result};
 
 #[derive(Debug)]
 pub struct Store<'a> {

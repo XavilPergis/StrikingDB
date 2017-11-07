@@ -19,6 +19,8 @@
  *
  */
 
+use self::rentals::VolumeRental;
+use super::{MIN_STRANDS, PAGE_SIZE64, FilePointer, Result};
 use buffer::Page;
 use deleted::Deleted;
 use device::Device;
@@ -27,14 +29,12 @@ use index::Index;
 use num_cpus;
 use options::OpenOptions;
 use parking_lot::RwLock;
-use self::rentals::VolumeRental;
 use serial::{DatastoreState, VolumeHeader};
 use stats::Stats;
 use std::cmp::{Ordering, min};
 use std::time::Duration;
 use std::u16;
 use strand::Strand;
-use super::{MIN_STRANDS, PAGE_SIZE64, FilePointer, Result};
 use utils::align;
 
 #[derive(Debug)]
