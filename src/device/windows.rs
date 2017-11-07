@@ -23,7 +23,8 @@
 
 use std::fs::File;
 use std::os::windows::prelude::*;
-use super::{Device, Result};
+use std::path::Path;
+use super::{Device, Result, open_file};
 
 #[derive(Debug)]
 pub struct Ssd {
@@ -38,7 +39,8 @@ impl Ssd {
         unimplemented!();
     }
 
-    pub fn open(mut file: File) -> Result<Self> {
+    pub fn open(path: &Path) -> Result<Self> {
+        let mut file = open_file(path)?;
         let (capacity, block) = Self::get_metadata()?;
 
         Ok(Ssd {

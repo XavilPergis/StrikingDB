@@ -19,14 +19,14 @@
  *
  */
 
-use std::cmp::min;
-use std::io::{self, BufRead, Read, Write};
+use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, FilePointer};
 use super::buffer::{Block, Buffer, BufferStatus, Page};
 use super::error::Error;
 use super::header::StrandHeader;
 use super::strand::Strand;
 use super::utils::{align, block_align};
-use super::{PAGE_SIZE, PAGE_SIZE64, TRIM_SIZE, FilePointer};
+use std::cmp::min;
+use std::io::{self, BufRead, Read, Write};
 
 fn to_io_error(err: Error) -> io::Error {
     use Error::Io;
@@ -224,7 +224,9 @@ impl<'s, 'd> Write for StrandWriter<'s, 'd> {
 
         // Write current block
         let off = block_align(self.cursor);
-        self.strand.write(off, &self.buffer[..]).map_err(to_io_error)?;
+        self.strand.write(off, &self.buffer[..]).map_err(
+            to_io_error,
+        )?;
         self.buffer.status = BufferStatus::Clean;
 
         Ok(())

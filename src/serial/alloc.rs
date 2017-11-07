@@ -19,9 +19,9 @@
  *
  */
 
+use super::buffer::Page;
 use capnp::Word;
 use capnp::message::Allocator;
-use super::buffer::Page;
 
 #[derive(Debug, Clone, Default, Hash)]
 pub struct PageAllocator {

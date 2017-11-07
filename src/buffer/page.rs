@@ -19,13 +19,24 @@
  *
  */
 
+use super::{PAGE_SIZE, ByteArray};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
-use super::{PAGE_SIZE, ByteArray};
 
-#[derive(Clone)]
 pub struct Page([u8; PAGE_SIZE]);
+
+// FIXME: We can derive clone once const generics land
+impl Clone for Page {
+   fn clone(&self) -> Self {
+        let mut copy: [u8; PAGE_SIZE] = unsafe { ::std::mem::uninitialized() };
+        {
+            let dest = &mut copy[..];
+            dest.copy_from_slice(&self[..]);
+        }
+        Page(copy)
+    }
+}
 
 impl Deref for Page {
     type Target = [u8];

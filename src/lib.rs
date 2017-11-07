@@ -82,10 +82,11 @@ mod volume;
 type FilePointer = u64;
 
 /* Reexports */
+
 pub use error::{Error, Result};
+pub use options::{OpenMode, OpenOptions};
 pub use stats::Stats;
 pub use store::Store;
-pub use options::{OpenMode, OpenOptions};
 
 /// The version of this crate, as a string.
 pub const VERSION_STR: &'static str = build::PKG_VERSION;

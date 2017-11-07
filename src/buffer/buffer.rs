@@ -19,8 +19,8 @@
  *
  */
 
-use std::ops::{Deref, DerefMut};
 use super::{ByteArray, BufferStatus};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, Hash)]
 pub struct Buffer<B: ByteArray> {

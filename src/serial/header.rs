@@ -19,16 +19,16 @@
  *
  */
 
-use capnp::message::{Builder, ReaderOptions};
-use capnp::serialize_packed;
 use self::rentals::{VolumeHeaderRental, StrandHeaderRental};
-use serial_capnp::{self, strand_header, volume_header};
-use std::fmt;
+use super::{MIN_STRANDS, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
 use super::alloc::PageAllocator;
 use super::buffer::Page;
 use super::stats::Stats;
 use super::strand::Strand;
-use super::{MIN_STRANDS, PAGE_SIZE64, VERSION, Error, FilePointer, Result};
+use capnp::message::{Builder, ReaderOptions};
+use capnp::serialize_packed;
+use serial_capnp::{self, strand_header, volume_header};
+use std::fmt;
 
 rental! {
     mod rentals {

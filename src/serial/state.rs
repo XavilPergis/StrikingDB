@@ -19,17 +19,17 @@
  *
  */
 
-use capnp::message::{Builder, HeapAllocator, ReaderOptions};
-use capnp::serialize_packed;
-use error::Error;
 use self::rentals::DatastoreStateRental;
-use serial_capnp::{self, datastore_state};
-use std::fmt;
-use strand::Strand;
+use super::{FilePointer, Result, StrandReader, StrandWriter};
 use super::deleted::{Deleted, DeletedSet};
 use super::index::{Index, IndexTree};
 use super::volume::VolumeState;
-use super::{FilePointer, Result, StrandReader, StrandWriter};
+use capnp::message::{Builder, HeapAllocator, ReaderOptions};
+use capnp::serialize_packed;
+use error::Error;
+use serial_capnp::{self, datastore_state};
+use std::fmt;
+use strand::Strand;
 
 rental! {
     mod rentals {

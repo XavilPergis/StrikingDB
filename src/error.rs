@@ -20,8 +20,8 @@
  */
 
 use capnp;
-use std::fmt::{self, Display};
 use std::{error, io, result};
+use std::fmt::{self, Display};
 
 /// A specialized [`Result`] type for this crate.
 ///
