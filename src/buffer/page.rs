@@ -31,7 +31,7 @@ impl Clone for Page {
    fn clone(&self) -> Self {
         let mut copy: [u8; PAGE_SIZE] = unsafe { ::std::mem::uninitialized() };
         {
-            let mut dest = &mut copy[..];
+            let dest = &mut copy[..];
             dest.copy_from_slice(&self[..]);
         }
         Page(copy)
