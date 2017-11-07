@@ -112,12 +112,12 @@ impl<'a> Store<'a> {
             return Ok(len);
         }
 
-        let entry = self.index.lock(key);
-        let ptr = match entry.value {
-            Some(ptr) => ptr,
+        let guard = match self.index.get(key) {
+            Some(guard) => guard,
             None => return Err(Error::ItemNotFound),
         };
 
+        let ptr = *guard;
         self.volume.read(
             ptr,
             |strand| self.lookup_item(strand, ptr, val),
@@ -143,10 +143,10 @@ impl<'a> Store<'a> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        let mut entry = self.index.lock(key);
-        if entry.exists() {
-            return Err(Error::ItemExists);
-        }
+        let mut guard = match self.index.insert(key) {
+            Some(guard) => guard,
+            None => return Err(Error::ItemExists),
+        };
 
         let ptr = self.volume.write(|strand| {
             {
@@ -157,7 +157,7 @@ impl<'a> Store<'a> {
             write_item(strand, key, val)
         })?;
 
-        entry.value = Some(ptr);
+        *guard = ptr;
         Ok(())
     }
 
@@ -172,9 +172,8 @@ impl<'a> Store<'a> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        let mut entry = self.index.lock(key);
-        let old_ptr = match entry.value {
-            Some(ptr) => ptr,
+        let mut guard = match self.index.update(key) {
+            Some(guard) => guard,
             None => return Err(Error::ItemNotFound),
         };
 
@@ -188,8 +187,8 @@ impl<'a> Store<'a> {
             write_item(strand, key, val)
         })?;
 
-        self.remove_item(key, old_ptr);
-        entry.value = Some(ptr);
+        self.remove_item(key, *guard);
+        *guard = ptr;
         Ok(())
     }
 
@@ -202,7 +201,7 @@ impl<'a> Store<'a> {
         Self::verify_key(key)?;
         Self::verify_val(val)?;
 
-        let mut entry = self.index.lock(key);
+        let mut entry = self.index.entry(key);
         let ptr = self.volume.write(|strand| {
             {
                 let stats = &mut strand.stats.lock();
@@ -215,11 +214,11 @@ impl<'a> Store<'a> {
             write_item(strand, key, val)
         })?;
 
-        if let Some(old_ptr) = entry.value {
+        if let Some(old_ptr) = *entry {
             self.remove_item(key, old_ptr);
         }
 
-        entry.value = Some(ptr);
+        *entry = Some(ptr);
         Ok(())
     }
 

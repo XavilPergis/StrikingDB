@@ -22,6 +22,7 @@
 use super::FilePointer;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::collections::BTreeMap;
+use std::ops::{Deref, DerefMut};
 
 pub type IndexTree = BTreeMap<Box<[u8]>, RwLock<FilePointer>>;
 
@@ -43,6 +44,20 @@ impl Index {
 
     pub fn exists(&self, key: &[u8]) -> bool {
         self.0.read().contains_key(key)
+    }
+
+    pub fn entry<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntry<'i, 'k> {
+        let mut map = self.0.write();
+        if let Some(lock) = map.get_mut(key) {
+            return IndexEntry::new(self, key, lock.write(), true);
+        }
+
+        {
+            let key = Vec::from(key).into_boxed_slice();
+            map.insert(key, RwLock::new(0));
+        }
+
+        IndexEntry::new(self, key, map[key].write(), false)
     }
 
     pub fn get(&self, key: &[u8]) -> Option<RwLockReadGuard<FilePointer>> {
@@ -79,5 +94,58 @@ impl Index {
 impl Default for Index {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct IndexEntry<'i, 'k> {
+    index: &'i Index,
+    guard: RwLockWriteGuard<'i, FilePointer>,
+    key: &'k [u8],
+    value: Option<FilePointer>,
+}
+
+impl<'i, 'k> IndexEntry<'i, 'k> {
+    fn new(
+        index: &'i Index,
+        key: &'k [u8],
+        guard: RwLockWriteGuard<'i, FilePointer>,
+        exists: bool,
+    ) -> Self {
+        let value = match exists {
+            true => Some(*guard),
+            false => None,
+        };
+
+        IndexEntry {
+            index: index,
+            guard: guard,
+            key: key,
+            value: value,
+        }
+    }
+
+    pub fn exists(&self) -> bool {
+        self.value.is_some()
+    }
+}
+
+impl<'i, 'k> Deref for IndexEntry<'i, 'k> {
+    type Target = Option<FilePointer>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<'i, 'k> DerefMut for IndexEntry<'i, 'k> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
+    }
+}
+
+impl<'i, 'k> Drop for IndexEntry<'i, 'k> {
+    fn drop(&mut self) {
+        let mut map = self.index.0.write();
+        map.remove(self.key).unwrap();
     }
 }

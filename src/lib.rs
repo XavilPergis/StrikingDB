@@ -27,6 +27,7 @@
 //! It is mostly ACID-compliant, supporting basic CRUD methods for interfacing with the
 //! datastore.
 
+#![deny(missing_debug_implementations)]
 #![warn(missing_docs)]
 
 extern crate capnp;
