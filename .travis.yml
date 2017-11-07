@@ -1,0 +1,23 @@
+os:
+  - linux
+  - osx
+sudo: required
+
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+
+before_install:
+  - .travis/install.sh
+
+script:
+  cargo build --verbose
+
+matrix:
+  allow_failures:
+    - rust: nightly
+cache: cargo
+
+# vim: set sw=2 ts=2:
