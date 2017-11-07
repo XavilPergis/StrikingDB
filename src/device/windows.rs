@@ -22,9 +22,10 @@
 use std::fs::File;
 use std::os::windows::fs::FileExt;
 use std::os::windows::prelude::*;
+use std::path::Path;
 use std::{io, mem, ptr};
 use super::{Device, Error, Result};
-use super::{check_read, check_write, check_trim};
+use super::{check_read, check_write, check_trim, open_file};
 use winapi::minwindef::*;
 use winapi::{kernel32, winioctl, winnt};
 
@@ -92,7 +93,8 @@ impl Ssd {
         }
     }
 
-    pub fn open(mut file: File) -> Result<Self> {
+    pub fn open(path: &Path) -> Result<Self> {
+        let mut file = open_file(path)?;
         let (capacity, block) = Self::get_metadata()?;
 
         Ok(Ssd {
