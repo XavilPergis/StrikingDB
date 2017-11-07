@@ -19,12 +19,12 @@
  *
  */
 
+use super::{PAGE_SIZE64, FilePointer, Result};
 use buffer::Page;
 use device::Device;
 use parking_lot::Mutex;
 use serial::StrandHeader;
 use stats::Stats;
-use super::{PAGE_SIZE64, FilePointer, Result};
 
 #[derive(Debug)]
 pub struct Strand<'d> {
@@ -138,7 +138,10 @@ impl<'d> Strand<'d> {
     pub fn read(&self, off: u64, buf: &mut [u8]) -> Result<()> {
         let len = buf.len() as u64;
         debug_assert!(off < self.capacity, "Offset is outside strand");
-        debug_assert!(off + len <= self.start + self.capacity, "Length outside of strand");
+        debug_assert!(
+            off + len <= self.start + self.capacity,
+            "Length outside of strand"
+        );
 
         {
             let mut stats = self.stats.lock();
@@ -151,7 +154,10 @@ impl<'d> Strand<'d> {
     pub fn write(&self, off: u64, buf: &[u8]) -> Result<()> {
         let len = buf.len() as u64;
         debug_assert!(off < self.capacity, "Offset is outside strand");
-        debug_assert!(off + len <= self.start + self.capacity, "Length outside of strand");
+        debug_assert!(
+            off + len <= self.start + self.capacity,
+            "Length outside of strand"
+        );
 
         {
             let mut stats = self.stats.lock();
@@ -164,7 +170,10 @@ impl<'d> Strand<'d> {
     #[allow(unused)]
     pub fn trim(&self, off: u64, len: u64) -> Result<()> {
         debug_assert!(off < self.capacity, "Offset is outside strand");
-        debug_assert!(off + len <= self.start + self.capacity, "Length outside of strand");
+        debug_assert!(
+            off + len <= self.start + self.capacity,
+            "Length outside of strand"
+        );
 
         {
             let mut stats = self.stats.lock();

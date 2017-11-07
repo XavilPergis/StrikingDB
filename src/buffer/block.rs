@@ -19,10 +19,10 @@
  *
  */
 
+use super::{TRIM_SIZE, ByteArray};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
-use super::{TRIM_SIZE, ByteArray};
 
 #[derive(Clone)]
 pub struct Block([u8; TRIM_SIZE]);

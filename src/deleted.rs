@@ -19,9 +19,9 @@
  *
  */
 
+use super::FilePointer;
 use parking_lot::RwLock;
 use std::collections::BTreeSet;
-use super::FilePointer;
 
 pub type DeletedSet = BTreeSet<FilePointer>;
 

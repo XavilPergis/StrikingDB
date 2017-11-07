@@ -24,12 +24,12 @@ mod buffer;
 mod page;
 mod traits;
 
-use super::{PAGE_SIZE, TRIM_SIZE};
 
 pub use self::block::Block;
 pub use self::buffer::Buffer;
 pub use self::page::Page;
 pub use self::traits::ByteArray;
+use super::{PAGE_SIZE, TRIM_SIZE};
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
 pub enum BufferStatus {

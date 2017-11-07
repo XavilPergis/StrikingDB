@@ -19,13 +19,13 @@
  *
  */
 
+use super::{FilePointer, Result, StrandReader, StrandWriter};
+use super::serial_capnp::item;
+use super::strand::Strand;
 use capnp::message::{Builder, ReaderOptions};
 use capnp::serialize_packed;
 use std::cmp::min;
 use std::io::Write;
-use super::serial_capnp::item;
-use super::strand::Strand;
-use super::{FilePointer, Result, StrandReader, StrandWriter};
 
 #[derive(Clone)]
 pub struct ReadContext<'a>(item::Reader<'a>);
