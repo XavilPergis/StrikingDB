@@ -1,5 +1,5 @@
 /*
- * device/windows.rs
+ * device/windows/mod.rs
  *
  * striking-db - Persistent key/value store for SSDs.
  * Copyright (c) 2017 Maxwell Duzen, Ammon Smith
@@ -20,25 +20,18 @@
  */
 
 use kernel32;
+use self::api::*;
 use std::fs::File;
+use std::os::raw::c_void;
 use std::os::windows::fs::FileExt;
 use std::os::windows::prelude::*;
 use std::path::Path;
 use std::{io, mem, ptr};
 use super::{Device, Error, Result};
 use super::{check_read, check_write, check_trim, open_file};
-use winapi::minwindef::*;
 use winapi::{winioctl, winnt};
 
-#[repr(C)]
-#[derive(Debug, Default, Clone)]
-struct DISK_GEOMETRY {
-    pub Cylinders: LARGE_INTEGER,
-    pub MediaType: MEDIA_TYPE,
-    pub TracksPerCylinder: DWORD,
-    pub SectorsPerTrack: DWORD,
-    pub BytesPerSector: DWORD,
-}
+mod api;
 
 #[derive(Debug)]
 pub struct Ssd {
@@ -49,32 +42,32 @@ pub struct Ssd {
 
 impl Ssd {
     unsafe fn get_block_capacity(handle: RawHandle) -> Result<u64> {
-        let mut dg = DISK_GEOMETRY::default();
+        let mut dg = DISK_GEOMETRY_EX::default();
         let mut bytes = 0;
         let ret = kernel32::DeviceIoControl(
             handle,
-            winioctl::IOCTL_DISK_GET_DISK_GEOMETRY,
-            &mut dg,
-            mem::size_of::<DISK_GEOMETRY>(),
-            &mut dg,
-            mem::size_of::<DISK_GEOMETRY>(),
-            &mut bytes,
+            winioctl::IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
+            ptr::null_mut(),
             0,
+            &mut dg as *mut _ as *mut c_void,
+            mem::size_of::<DISK_GEOMETRY_EX>() as u32,
+            &mut bytes,
+            ptr::null_mut(),
         );
 
-        match ret {
-            true => {
-                let mut capacity;
-                capacity = dg.BytesPerSector;
-                capacity *= dg.SectorsPerTrack;
-                capacity *= dg.TracksPerCylinder;
-                capacity *= dg.Cylinders.QuadPart;
-                Ok(capacity)
-            },
-            false => {
-                let last = Some(io::Error::last_os_error());
-                Err(Error::Io(last))
-            },
+        if ret != 0 {
+            let mut capacity;
+            capacity = dg.Geometry.BytesPerSector as i64;
+            capacity *= dg.Geometry.SectorsPerTrack as i64;
+            capacity *= dg.Geometry.TracksPerCylinder as i64;
+            capacity *= dg.Geometry.Cylinders;
+            let capacity2 = dg.DiskSize;
+            assert_eq!(capacity, capacity2);
+            assert!(capacity > 0, "Capacity is negative");
+            Ok(capacity as u64)
+        } else {
+            let last = Some(io::Error::last_os_error());
+            Err(Error::Io(last))
         }
     }
 
@@ -87,7 +80,7 @@ impl Ssd {
                 Self::get_block_capacity(file.as_raw_handle())?
             };
             Ok((capacity, true))
-        } else if metdata.file_type().is_file() {
+        } else if metadata.file_type().is_file() {
             Ok((metadata.file_size(), false))
         } else {
             Err(Error::FileType)
@@ -96,7 +89,7 @@ impl Ssd {
 
     pub fn open(path: &Path) -> Result<Self> {
         let mut file = open_file(path)?;
-        let (capacity, block) = Self::get_metadata()?;
+        let (capacity, block) = Self::get_metadata(&mut file)?;
 
         Ok(Ssd {
             file: file,
