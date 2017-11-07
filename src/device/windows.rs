@@ -19,6 +19,7 @@
  *
  */
 
+use kernel32;
 use std::fs::File;
 use std::os::windows::fs::FileExt;
 use std::os::windows::prelude::*;
@@ -27,7 +28,7 @@ use std::{io, mem, ptr};
 use super::{Device, Error, Result};
 use super::{check_read, check_write, check_trim, open_file};
 use winapi::minwindef::*;
-use winapi::{kernel32, winioctl, winnt};
+use winapi::{winioctl, winnt};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone)]

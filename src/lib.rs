@@ -39,6 +39,7 @@ cfg_if! {
         #[macro_use]
         extern crate nix;
     } else if #[cfg(windows)] {
+        extern crate kernel32;
         extern crate winapi;
     }
 }
