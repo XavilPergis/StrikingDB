@@ -289,19 +289,20 @@ impl<'a> Store<'a> {
     }
 
     /// Performs an atomic read-modify-write on the given item.
-    /// This method takes the key to act upon, and a closure.
-    /// The closure is passed three arguments: the key, the value
-    /// buffer, and a boolean reference.
     ///
-    /// If the item already exists in the datastore, then the
-    /// value vector is filled with its current value, and
-    /// "exists" is set to `true`. Otherwise the vector is
-    /// empty and "exists" is set to `false`.
+    /// The closure takes an option containing the value buffer,
+    /// and returns an option containing a potentially modified
+    /// buffer. The input is `Some` if there is an associated
+    /// on disk, and `None` if there isn't. The table below shows
+    /// the behavior of this function for different combinations
+    /// of inputs and outputs:
     ///
-    /// After the execution of the closure, the value of the boolean
-    /// is inspected. If it is true, then the item is inserted / updated
-    /// with the given value in the vector. If it is false, the item is
-    /// deleted.
+    /// |    Input   |    Output   | Behavior                                |
+    /// |:----------:|:-----------:|-----------------------------------------|
+    /// |   `None`   |    `None`   | Nothing                                 |
+    /// |   `None`   | `Some(buf)` | Entry will be inserted with value `buf` |
+    /// |  `Some(_)` |    `None`   | Entry will be deleted                   |
+    /// |  `Some(_)` | `Some(buf)` | Entry will be updated with value `buf`  |
     ///
     /// As this method has forms of handling for all cases of item
     /// existence / non-existence, it will never return
