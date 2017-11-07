@@ -28,7 +28,7 @@ pub struct Block([u8; TRIM_SIZE]);
 
 // FIXME: We can derive clone once const generics land
 impl Clone for Block {
-   fn clone(&self) -> Self {
+    fn clone(&self) -> Self {
         let mut copy: [u8; TRIM_SIZE] = unsafe { ::std::mem::uninitialized() };
         {
             let dest = &mut copy[..];

@@ -330,7 +330,7 @@ impl<'a> Store<'a> {
 
                 Some(val_buffer)
             }
-            None => None
+            None => None,
         };
 
         // Call the user's function...
