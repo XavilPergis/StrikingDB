@@ -204,50 +204,52 @@ impl<'a> Store<'a> {
     ///
     /// [`Error::Exists`]: enum.Error.html
     /// [`Error::ItemNotFound`]: enum.Error.html
-    pub fn merge<F, R>(&self, key: &[u8], func: F) -> Result<R>
+    pub fn merge<F>(&self, key: &[u8], func: F) -> Result<()>
     where
-        F: FnOnce(&[u8], &mut Vec<u8>, &mut bool) -> R,
+        F: FnOnce(Option<Vec<u8>>) -> Option<Vec<u8>>,
     {
         Self::verify_key(key)?;
 
         let mut entry = self.index.lock(key);
-        let mut val = Vec::new();
-        let mut exists = match entry.value {
+
+        // Read a value from the store if it's there, and return it in a vec
+        let val = match entry.value {
             Some(ptr) => {
-                self.volume.read(ptr, |strand| {
-                    read_item(strand, ptr, |ctx| {
-                        val = Vec::from(ctx.val()?);
-                        Ok(())
-                    })
+                let val_buffer = self.volume.read(ptr, |strand| {
+                    read_item(strand, ptr, |ctx| Ok(Vec::from(ctx.val()?)))
                 })?;
+
+                // NOTE: "updates" are really just a removal and an insert
                 self.remove_item(key, ptr);
 
-                true
+                Some(val_buffer)
             }
-            None => false,
+            None => None
         };
 
-        let result = func(key, &mut val, &mut exists);
-        self.volume.write(|strand| -> Result<()> {
+        // Call the user's function...
+        let result = func(val);
+
+        // Write it back!
+        self.volume.write(|strand| {
+            // Update stats
             {
                 let stats = strand.stats.get_mut();
                 if entry.exists() {
                     stats.deleted_items += 1;
                 }
-                if exists {
+                if result.is_some() {
                     stats.valid_items += 1;
                 }
             }
 
-            entry.value = match exists {
-                true => Some(write_item(strand, key, val.as_slice())?),
-                false => None,
+            entry.value = match result {
+                Some(ref val) => Some(write_item(strand, key, val.as_slice())?),
+                None => None,
             };
 
             Ok(())
-        })?;
-
-        Ok(result)
+        })
     }
 
     // Delete
