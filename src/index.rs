@@ -20,7 +20,7 @@
  */
 
 use super::FilePointer;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::RwLock;
 use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 
@@ -53,7 +53,7 @@ impl Index {
         }
 
         {
-            let key = Vec::from(key).into_boxed_slice();
+            let key = key.to_vec().into_boxed_slice();
             map.insert(key, RwLock::new(0));
         }
 
@@ -77,7 +77,7 @@ impl Index {
         }
 
         {
-            let key = Vec::from(key).into_boxed_slice();
+            let key = key.to_vec().into_boxed_slice();
             let val = RwLock::new(0);
             map.insert(key, val);
         }
@@ -85,9 +85,9 @@ impl Index {
         Some(map[key].write())
     }
 
-    pub fn delete(&self, key: &[u8]) -> Option<FilePointer> {
-        let map = self.0.write();
-        map.remove(key).map(|lock| lock.into_inner())
+    pub fn remove<'i, 'k>(&'i self, key: &'k [u8]) -> Option<IndexRemoved<'i, 'k>> {
+        let map = self.0.read();
+        map.get(key).map(|lock| IndexRemoved::new(self, lock.write(), key))
     }
 }
 
@@ -97,6 +97,7 @@ impl Default for Index {
     }
 }
 
+#[must_use]
 pub struct IndexEntry<'i, 'k> {
     index: &'i Index,
     guard: RwLockWriteGuard<'i, FilePointer>,
@@ -144,6 +145,49 @@ impl<'i, 'k> DerefMut for IndexEntry<'i, 'k> {
 }
 
 impl<'i, 'k> Drop for IndexEntry<'i, 'k> {
+    fn drop(&mut self) {
+        let mut map = self.index.0.write();
+        match self.value {
+            Some(ptr) => {
+                *self.guard = ptr;
+            },
+            None => {
+                map.remove(self.key).unwrap();
+            }
+        }
+    }
+}
+
+#[must_use]
+pub struct IndexRemoved<'i, 'k> {
+    index: &'i Index,
+    guard: RwLockWriteGuard<'i, FilePointer>,
+    key: &'k [u8],
+}
+
+impl<'i, 'k> IndexRemoved<'i, 'k> {
+    fn new(
+        index: &'i Index,
+        guard: RwLockWriteGuard<'i, FilePointer>,
+        key: &'k [u8],
+    ) -> Self {
+        IndexRemoved {
+            index: index,
+            guard: guard,
+            key: key,
+        }
+    }
+}
+
+impl<'i, 'k> Deref for IndexRemoved<'i, 'k> {
+    type Target = FilePointer;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.guard
+    }
+}
+
+impl<'i, 'k> Drop for IndexRemoved<'i, 'k> {
     fn drop(&mut self) {
         let mut map = self.index.0.write();
         map.remove(self.key).unwrap();

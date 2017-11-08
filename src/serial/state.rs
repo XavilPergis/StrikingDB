@@ -20,7 +20,6 @@
  */
 
 use self::rentals::DatastoreStateRental;
-use parking_lot::RwLock;
 use super::{FilePointer, Result, StrandReader, StrandWriter};
 use super::deleted::{Deleted, DeletedSet};
 use super::index::{Index, IndexTree};
@@ -28,6 +27,7 @@ use super::volume::VolumeState;
 use capnp::message::{Builder, HeapAllocator, ReaderOptions};
 use capnp::serialize_packed;
 use error::Error;
+use parking_lot::RwLock;
 use serial_capnp::{self, datastore_state};
 use std::fmt;
 use strand::Strand;
@@ -103,7 +103,7 @@ impl DatastoreState {
             for entry in list.iter() {
                 let key = {
                     let slice = entry.get_key()?;
-                    Vec::from(slice).into_boxed_slice()
+                    slice.to_vec().into_boxed_slice()
                 };
 
                 let ptr = entry.get_value()?.get_pointer();

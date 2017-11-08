@@ -234,14 +234,13 @@ impl<'a> Store<'a> {
     pub fn remove(&self, key: &[u8]) -> Result<()> {
         Self::verify_key(key)?;
 
-        let entry = self.index.lock(key);
-        if let Some(ptr) = entry.value {
-            self.volume.read(ptr, |strand| {
+        if let Some(guard) = self.index.remove(key) {
+            self.volume.read(*guard, |strand| {
                 let stats = &mut strand.stats.lock();
                 stats.deleted_items += 1;
             });
 
-            self.remove_item(key, ptr);
+            self.remove_item(key, *guard);
         }
 
         Ok(())
@@ -264,14 +263,13 @@ impl<'a> Store<'a> {
     pub fn delete(&self, key: &[u8], val: &mut [u8]) -> Result<usize> {
         Self::verify_key(key)?;
 
-        let mut entry = self.index.lock(key);
-        let ptr = match entry.value {
-            Some(ptr) => ptr,
+        let guard = match self.index.remove(key) {
+            Some(guard) => guard,
             None => return Err(Error::ItemNotFound),
         };
 
+        let ptr = *guard;
         self.remove_item(key, ptr);
-        entry.value = None;
 
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
@@ -315,30 +313,27 @@ impl<'a> Store<'a> {
     {
         Self::verify_key(key)?;
 
-        let mut entry = self.index.lock(key);
+        let mut entry = self.index.entry(key);
 
         // Read a value from the store if it's there, and return it in a vec
-        let val = match entry.value {
+        let val = match *entry {
             Some(ptr) => {
                 let val_buffer = self.volume.read(ptr, |strand| {
-                    read_item(strand, ptr, |ctx| Ok(Vec::from(ctx.val()?)))
+                    read_item(strand, ptr, |ctx| Ok(ctx.val()?.to_vec()))
                 })?;
-
-                // NOTE: "updates" are really just a removal and an insert
                 self.remove_item(key, ptr);
-
                 Some(val_buffer)
-            }
+            },
             None => None,
         };
 
-        // Call the user's function...
+        // Call the user's function
         let result = func(val);
 
         // Write it back!
         self.volume.write(|strand| {
-            // Update stats
             {
+                // Update stats
                 let stats = strand.stats.get_mut();
                 if entry.exists() {
                     stats.deleted_items += 1;
@@ -348,7 +343,7 @@ impl<'a> Store<'a> {
                 }
             }
 
-            entry.value = match result {
+            *entry = match result {
                 Some(ref val) => Some(write_item(strand, key, val.as_slice())?),
                 None => None,
             };

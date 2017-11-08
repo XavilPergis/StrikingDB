@@ -38,8 +38,8 @@ impl ReadCache {
 
     pub fn insert(&self, key: &[u8], val: &[u8]) -> Option<Box<[u8]>> {
         self.0.write().insert(
-            Vec::from(key).into_boxed_slice(),
-            Vec::from(val).into_boxed_slice(),
+            key.to_vec().into_boxed_slice(),
+            val.to_vec().into_boxed_slice(),
         )
     }
 
