@@ -16,6 +16,7 @@ lru_time_cache = "0.7"
 num_cpus = "1.6"
 parking_lot = "0.4"
 rental = "0.4"
+scopeguard = "0.3"
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.9"

@@ -269,7 +269,9 @@ impl<'a> Store<'a> {
         };
 
         let ptr = *guard;
-        self.remove_item(key, ptr);
+        defer! {{
+            self.remove_item(key, ptr);
+        }}
 
         if let Some(len) = self.cache.get(key, val) {
             return Ok(len);
@@ -362,6 +364,7 @@ impl<'a> Store<'a> {
     }
 
     // Helpers
+    #[inline]
     fn lookup_item(&self, strand: &Strand, ptr: FilePointer, buf: &mut [u8]) -> Result<usize> {
         read_item(strand, ptr, |ctx| {
             let key = ctx.key()?;
@@ -371,6 +374,7 @@ impl<'a> Store<'a> {
         })
     }
 
+    #[inline]
     fn remove_item(&self, key: &[u8], ptr: FilePointer) {
         self.cache.remove(key);
         self.deleted.add(ptr);

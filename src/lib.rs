@@ -44,6 +44,9 @@ extern crate parking_lot;
 #[macro_use]
 extern crate rental;
 
+#[macro_use]
+extern crate scopeguard;
+
 /* Platform-specific dependencies */
 cfg_if! {
     if #[cfg(unix)] {
