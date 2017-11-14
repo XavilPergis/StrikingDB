@@ -10,12 +10,12 @@ case "$TRAVIS_OS_NAME" in
 		make -j6 check
 		sudo make install
 		;;
-	mac)
+	osx)
 		brew update
 		brew install capnp
 		;;
 	*)
-		echo 'Unknown OS!'
+		echo "Unknown OS: $TRAVIS_OS_NAME"
 		exit 1
 		;;
 esac
