@@ -24,7 +24,8 @@ use super::FilePointer;
 mod entry;
 mod object;
 mod sync;
+mod wrap;
 
-pub use self::entry::{IndexEntry, IndexEntryMut};
 pub use self::object::{Index, IndexTree};
-pub use self::sync::LockedEntry;
+pub use self::sync::CopyRwLock;
+pub use self::wrap::{MutableEntry, LookupEntry, UpdateEntry, RemoveEntry, InsertEntry};

@@ -23,14 +23,14 @@ use std::fmt::{self, Debug};
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::thread;
 
-struct CopyRwLock<T: Debug + Copy> {
+pub struct CopyRwLock<T: Debug + Copy> {
     value: T,
     busy: AtomicIsize,
 }
 
 impl<T: Debug + Copy> CopyRwLock<T> {
     pub fn new(value: T) -> Self {
-        LockedEntry {
+        CopyRwLock {
             value: value,
             busy: AtomicIsize::new(0),
         }
@@ -38,8 +38,11 @@ impl<T: Debug + Copy> CopyRwLock<T> {
 
     pub fn try_read_lock(&self) -> Option<T> {
         let hold = self.busy.load(Ordering::Relaxed);
-        let prev = self.busy.compare_and_swap(hold, hold + 1, Ordering::Relaxed);
+        if hold == -1 {
+            return None;
+        }
 
+        let prev = self.busy.compare_and_swap(hold, hold + 1, Ordering::Relaxed);
         match prev {
             hold => Some(self.value),
             _ => None,

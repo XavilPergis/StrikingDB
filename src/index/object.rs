@@ -20,11 +20,12 @@
  */
 
 use super::FilePointer;
-use super::sync::LockedEntry;
+use super::sync::CopyRwLock;
+use super::wrap::{MutableEntry, LookupEntry, UpdateEntry, RemoveEntry, InsertEntry};
 use parking_lot::RwLock;
 use std::collections::BTreeMap;
 
-pub type IndexTree = BTreeMap<Box<[u8]>, LockedEntry<FilePointer>>;
+pub type IndexTree = BTreeMap<Box<[u8]>, CopyRwLock<FilePointer>>;
 
 #[derive(Debug)]
 pub struct Index(RwLock<IndexTree>);
@@ -46,11 +47,10 @@ impl Index {
         self.0.read().contains_key(key)
     }
 
-    pub fn entry<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntryMut<'i, 'k> {
+    pub fn entry<'i, 'k>(&'i self, key: &'k [u8]) -> MutableEntry<'i, 'k> {
         let mut map = self.0.write();
         if let Some(lock) = map.get_mut(key) {
-            let ptr = lock.write_lock();
-            return IndexEntryMut::new(self, key, Some(ptr));
+            return MutableEntry::new(self, key, lock);
         }
 
         {
@@ -58,37 +58,35 @@ impl Index {
             map.insert(key, RwLock::new(0));
         }
 
-        IndexEntry::new(self, key, &map[key], false)
+        MutableEntry::new(self, key, &map[key])
     }
 
-    pub fn get<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntry<'i, 'k> {
+    pub fn lookup<'i, 'k>(&'i self, key: &'k [u8]) -> Option<LookupEntry<'i, 'k>> {
         let map = self.0.read();
-        map.get(key).map(|lock| lock.read())
+        map.get(key).map(|lock| LookupEntry::new(self, key, lock))
     }
 
-    pub fn update<'i, 'k>(&'i self, key: &'k [u8]) -> IndexEntryMut<'i, 'k> {
+    pub fn update<'i, 'k>(&'i self, key: &'k [u8]) -> Option<UpdateEntry<'i, 'k>> {
         let map = self.0.read();
-        map.get(key).map(|lock| lock.write())
+        map.get(key).map(|lock| UpdateEntry::new(self, key, lock, true))
     }
 
-    pub fn insert(&self, key: &[u8]) -> Option<RwLockWriteGuard<FilePointer>> {
-        let map = self.0.write();
-        if map.contains_key(key) {
-            return None;
-        }
-
-        {
-            let key = key.to_vec().into_boxed_slice();
-            let val = RwLock::new(0);
-            map.insert(key, val);
-        }
-
-        Some(map[key].write())
-    }
-
-    pub fn remove<'i, 'k>(&'i self, key: &'k [u8]) -> Option<IndexRemoved<'i, 'k>> {
+    pub fn remove<'i, 'k>(&'i self, key: &'k [u8]) -> Option<RemoveEntry<'i, 'k>> {
         let map = self.0.read();
-        map.get(key).map(|lock| IndexRemoved::new(self, lock.write(), key))
+        map.get(key).map(|lock| RemoveEntry::new(self, key, lock))
+    }
+
+    pub fn insert<'i, 'k>(&'i self, key: &'k [u8]) -> Option<InsertEntry<'i, 'k>> {
+        use std::collections::btree_map::Entry;
+
+        let mut map = self.0.write();
+        let key_copy = key.to_vec().into_boxed_slice();
+        let lock = match map.entry(key_copy) {
+            Entry::Vacant(entry) => entry.insert(CopyRwLock::new(0)),
+            Entry::Occupied(_) => return None,
+        };
+
+        InsertEntry::new(self, key, lock)
     }
 }
 
