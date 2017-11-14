@@ -87,8 +87,9 @@ impl<'i, 'k> RemoveEntry<'i, 'k> {
         key: &'k [u8],
         entry: &CopyRwLock<FilePointer>,
     ) -> Self {
-        let entry = IndexEntryMut::new(index, key, Some(entry));
+        let mut entry = IndexEntryMut::new(index, key, Some(entry));
         let value = entry.unwrap();
+        *entry = None;
         RemoveEntry(entry, value)
     }
 }
@@ -98,12 +99,6 @@ impl<'i, 'k> Deref for RemoveEntry<'i, 'k> {
 
     fn deref(&self) -> &Self::Target {
         &self.1
-    }
-}
-
-impl<'i, 'k> Drop for RemoveEntry<'i, 'k> {
-    fn drop(&mut self) {
-        *self.0 = None;
     }
 }
 
