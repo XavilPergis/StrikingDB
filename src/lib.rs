@@ -111,6 +111,7 @@ const TRIM_SIZE64: u64 = TRIM_SIZE as u64;
 lazy_static! {
     /// A lazily-initialized struct that contains a 3-tuple, in the
     /// form `(major, minor, patch)`.
+    #[derive(Debug)]
     pub static ref VERSION: (u8, u8, u8) = {
         let major = build::PKG_VERSION_MAJOR.parse::<u8>().unwrap();
         let minor = build::PKG_VERSION_MINOR.parse::<u8>().unwrap();

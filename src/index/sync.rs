@@ -19,21 +19,26 @@
  *
  */
 
+use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::thread;
 
 pub struct CopyRwLock<T: Debug + Copy> {
-    value: T,
+    value: UnsafeCell<T>,
     busy: AtomicIsize,
 }
 
 impl<T: Debug + Copy> CopyRwLock<T> {
     pub fn new(value: T) -> Self {
         CopyRwLock {
-            value: value,
+            value: UnsafeCell::new(value),
             busy: AtomicIsize::new(0),
         }
+    }
+
+    fn get(&self) -> T {
+        unsafe { *self.value.get() }
     }
 
     pub fn try_read_lock(&self) -> Option<T> {
@@ -43,9 +48,10 @@ impl<T: Debug + Copy> CopyRwLock<T> {
         }
 
         let prev = self.busy.compare_and_swap(hold, hold + 1, Ordering::Relaxed);
-        match prev {
-            hold => Some(self.value),
-            _ => None,
+        if prev == hold {
+            Some(self.get())
+        } else {
+            None
         }
     }
 
@@ -66,7 +72,7 @@ impl<T: Debug + Copy> CopyRwLock<T> {
     pub fn try_write_lock(&self) -> Option<T> {
         let prev = self.busy.compare_and_swap(0, -1, Ordering::Relaxed);
         match prev {
-            0 => Some(self.value),
+            0 => Some(self.get()),
             _ => None,
         }
     }
@@ -82,20 +88,14 @@ impl<T: Debug + Copy> CopyRwLock<T> {
     }
 
     pub fn write_unlock(&self, new_value: T) {
-        self.value = new_value;
+        unsafe { *self.value.get() = new_value; }
         assert_eq!(self.busy.swap(0, Ordering::Relaxed), -1);
-    }
-}
-
-impl<T: Debug + Copy> Clone for CopyRwLock<T> {
-    fn clone(&self) -> Self {
-        Self::new(self.value)
     }
 }
 
 impl<T: Debug + Copy> Debug for CopyRwLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "CopyRwLock(value = {:?}, ", self.value)?;
+        write!(f, "CopyRwLock(value = {:?}, ", self.get())?;
 
         match self.busy.load(Ordering::Relaxed) {
             -1 => write!(f, "write locked"),

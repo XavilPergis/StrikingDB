@@ -112,7 +112,7 @@ impl<'a> Store<'a> {
             return Ok(len);
         }
 
-        let guard = match self.index.get(key) {
+        let guard = match self.index.lookup(key) {
             Some(guard) => guard,
             None => return Err(Error::ItemNotFound),
         };

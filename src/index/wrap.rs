@@ -79,7 +79,7 @@ impl<'i, 'k> DerefMut for UpdateEntry<'i, 'k> {
 
 #[must_use]
 #[derive(Debug)]
-pub struct RemoveEntry<'i, 'k>(IndexEntryMut<'i, 'k>);
+pub struct RemoveEntry<'i, 'k>(IndexEntryMut<'i, 'k>, FilePointer);
 
 impl<'i, 'k> RemoveEntry<'i, 'k> {
     pub fn new(
@@ -87,7 +87,9 @@ impl<'i, 'k> RemoveEntry<'i, 'k> {
         key: &'k [u8],
         entry: &CopyRwLock<FilePointer>,
     ) -> Self {
-        RemoveEntry(IndexEntryMut::new(index, key, Some(entry)))
+        let entry = IndexEntryMut::new(index, key, Some(entry));
+        let value = entry.unwrap();
+        RemoveEntry(entry, value)
     }
 }
 
@@ -95,7 +97,7 @@ impl<'i, 'k> Deref for RemoveEntry<'i, 'k> {
     type Target = FilePointer;
 
     fn deref(&self) -> &Self::Target {
-        &self.0.unwrap()
+        &self.1
     }
 }
 

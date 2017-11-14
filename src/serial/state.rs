@@ -22,12 +22,11 @@
 use self::rentals::DatastoreStateRental;
 use super::{FilePointer, Result, StrandReader, StrandWriter};
 use super::deleted::{Deleted, DeletedSet};
-use super::index::{Index, IndexTree};
+use super::index::{CopyRwLock, Index, IndexTree};
 use super::volume::VolumeState;
 use capnp::message::{Builder, HeapAllocator, ReaderOptions};
 use capnp::serialize_packed;
 use error::Error;
-use parking_lot::RwLock;
 use serial_capnp::{self, datastore_state};
 use std::fmt;
 use strand::Strand;
@@ -61,10 +60,11 @@ impl DatastoreState {
                 let mut list = map.init_entries(index.len() as u32);
 
                 for (i, (key, lock)) in index.iter().enumerate() {
-                    let ptr = *lock.read();
+                    let ptr = lock.read_lock();
                     let mut entry = list.borrow().get(i as u32);
                     entry.set_key(&**key)?;
                     entry.init_value().set_pointer(ptr);
+                    lock.read_unlock();
                 }
             }
 
@@ -108,7 +108,7 @@ impl DatastoreState {
 
                 let ptr = entry.get_value()?.get_pointer();
 
-                if let Some(_) = index.insert(key, RwLock::new(ptr)) {
+                if let Some(_) = index.insert(key, CopyRwLock::new(ptr)) {
                     // Duplicate item in index
                     return Err(Error::Corrupt);
                 }

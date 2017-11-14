@@ -134,7 +134,7 @@ impl<'i, 'k> Drop for IndexEntryMut<'i, 'k> {
         let mut map = self.index.raw_write();
         match self.value {
             Some(value) => {
-                let mut entry = map.get_mut(self.key).unwrap();
+                let entry = map.get_mut(self.key).unwrap();
                 entry.write_unlock(value);
             },
             None => {
