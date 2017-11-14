@@ -55,20 +55,6 @@ impl Index {
         self.0.read().contains_key(key)
     }
 
-    pub fn entry<'i, 'k>(&'i self, key: &'k [u8]) -> MutableEntry<'i, 'k> {
-        let mut map = self.0.write();
-        if let Some(lock) = map.get_mut(key) {
-            return MutableEntry::new(self, key, Some(lock));
-        }
-
-        {
-            let key = key.to_vec().into_boxed_slice();
-            map.insert(key, CopyRwLock::new(0));
-        }
-
-        MutableEntry::new(self, key, Some(&map[key]))
-    }
-
     pub fn lookup<'i, 'k>(&'i self, key: &'k [u8]) -> Option<LookupEntry<'i, 'k>> {
         let map = self.0.read();
         map.get(key).map(|lock| LookupEntry::new(self, key, lock))
@@ -95,6 +81,20 @@ impl Index {
         };
 
         Some(InsertEntry::new(self, key, lock))
+    }
+
+    pub fn entry<'i, 'k>(&'i self, key: &'k [u8]) -> MutableEntry<'i, 'k> {
+        let mut map = self.0.write();
+        if let Some(lock) = map.get_mut(key) {
+            return MutableEntry::new(self, key, Some(lock));
+        }
+
+        {
+            let key = key.to_vec().into_boxed_slice();
+            map.insert(key, CopyRwLock::new(0));
+        }
+
+        MutableEntry::new(self, key, Some(&map[key]))
     }
 }
 
