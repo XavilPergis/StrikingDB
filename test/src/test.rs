@@ -24,37 +24,37 @@ use striking_db::Store;
 pub fn run(store: Store) {
     let mut value = [0; 16];
 
-    store.insert(b"abc", b"000").expect("1 - Insertion failed");
+    store.insert(b"abc", b"000").expect("0 - insert");
     {
-        let len = store.lookup(b"abc", &mut value[..]).expect("1 - Lookup failed");
+        let len = store.lookup(b"abc", &mut value[..]).expect("1 - lookup");
         assert_eq!(b"000", &value[..len]);
     }
     {
-        let len = store.lookup(b"abc", &mut value[..]).expect("1 - Lookup failed");
+        let len = store.lookup(b"abc", &mut value[..]).expect("2 - lookup");
         assert_eq!(b"000", &value[..len]);
     }
     {
-        let len = store.lookup(b"abc", &mut value[..]).expect("1 - Lookup failed");
+        let len = store.lookup(b"abc", &mut value[..]).expect("3 - lookup");
         assert_eq!(b"000", &value[..len]);
     }
 
-    store.update(b"abc", b"111").expect("2 - Update failed");
+    store.update(b"abc", b"111").expect("4 - update");
     {
-        let len = store.lookup(b"abc", &mut value[..]).expect("2 - Lookup failed");
+        let len = store.lookup(b"abc", &mut value[..]).expect("5 - lookup");
         assert_eq!(b"111", &value[..len]);
     }
     {
-        let len = store.lookup(b"abc", &mut value[..]).expect("2 - Lookup failed");
+        let len = store.lookup(b"abc", &mut value[..]).expect("6 - lookup");
         assert_eq!(b"111", &value[..len]);
     }
 
-    store.insert(b"def", b"ABCDEF").expect("3 - Insertion failed");
+    store.insert(b"def", b"ABCDEF").expect("7 - insert");
     assert_eq!(store.exists(b"def"), true);
     {
-        let len = store.delete(b"def", &mut value[..]).expect("3 - Delete failed");
+        let len = store.delete(b"def", &mut value[..]).expect("8 - delete");
         assert_eq!(b"ABCDEF", &value[..len]);
 
-        assert_eq!(store.exists(b"def"), false);
-        store.lookup(b"def", &mut value[..]).expect_err("3 - Lookup succeeded");
+        assert!(!store.exists(b"def"), "9 - exists after delete");
+        store.lookup(b"def", &mut value[..]).expect_err("10 - lookup after delete");
     }
 }
