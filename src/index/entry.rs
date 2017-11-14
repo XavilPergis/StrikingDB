@@ -30,6 +30,7 @@ pub struct IndexEntry<'i, 'k> {
     index: &'i Index,
     key: &'k [u8],
     value: FilePointer,
+    exclusive: bool,
 }
 
 impl<'i, 'k> IndexEntry<'i, 'k> {
@@ -74,8 +75,8 @@ impl<'i, 'k> DerefMut for IndexEntry<'i, 'k> {
 
 impl<'i, 'k> Drop for IndexEntry<'i, 'k> {
     fn drop(&mut self) {
-        let map = self.index.0.read();
-        let lock = map[self.key];
+        let map = self.index.raw_read();
+        let lock = map.get(self.key).unwrap();
 
         if self.exclusive {
             lock.write_unlock(self.value);
@@ -110,7 +111,7 @@ impl<'i, 'k> IndexEntryMut<'i, 'k> {
 
     #[inline]
     pub fn exists(&self) -> bool {
-        self.0.exists()
+        self.index.exists(self.key)
     }
 }
 
@@ -130,13 +131,15 @@ impl<'i, 'k> DerefMut for IndexEntryMut<'i, 'k> {
 
 impl<'i, 'k> Drop for IndexEntryMut<'i, 'k> {
     fn drop(&mut self) {
-        let mut map = self.index.0.write();
+        let mut map = self.index.raw_write();
         match self.value {
             Some(value) => {
                 let mut entry = map.get_mut(self.key).unwrap();
-                *entry = value;
+                entry.write_unlock(value);
             },
-            None => map.remove(self.key),
+            None => {
+                map.remove(self.key);
+            },
         }
     }
 }

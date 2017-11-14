@@ -22,7 +22,7 @@
 use super::FilePointer;
 use super::sync::CopyRwLock;
 use super::wrap::{MutableEntry, LookupEntry, UpdateEntry, RemoveEntry, InsertEntry};
-use parking_lot::RwLock;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::collections::BTreeMap;
 
 pub type IndexTree = BTreeMap<Box<[u8]>, CopyRwLock<FilePointer>>;
@@ -39,6 +39,14 @@ impl Index {
         Index(RwLock::new(map))
     }
 
+    pub fn raw_read(&self) -> RwLockReadGuard<IndexTree> {
+        self.0.read()
+    }
+
+    pub fn raw_write(&self) -> RwLockWriteGuard<IndexTree> {
+        self.0.write()
+    }
+
     pub fn get_mut(&mut self) -> &mut IndexTree {
         self.0.get_mut()
     }
@@ -50,15 +58,15 @@ impl Index {
     pub fn entry<'i, 'k>(&'i self, key: &'k [u8]) -> MutableEntry<'i, 'k> {
         let mut map = self.0.write();
         if let Some(lock) = map.get_mut(key) {
-            return MutableEntry::new(self, key, lock);
+            return MutableEntry::new(self, key, Some(lock));
         }
 
         {
             let key = key.to_vec().into_boxed_slice();
-            map.insert(key, RwLock::new(0));
+            map.insert(key, CopyRwLock::new(0));
         }
 
-        MutableEntry::new(self, key, &map[key])
+        MutableEntry::new(self, key, Some(&map[key]))
     }
 
     pub fn lookup<'i, 'k>(&'i self, key: &'k [u8]) -> Option<LookupEntry<'i, 'k>> {
@@ -68,7 +76,7 @@ impl Index {
 
     pub fn update<'i, 'k>(&'i self, key: &'k [u8]) -> Option<UpdateEntry<'i, 'k>> {
         let map = self.0.read();
-        map.get(key).map(|lock| UpdateEntry::new(self, key, lock, true))
+        map.get(key).map(|lock| UpdateEntry::new(self, key, lock))
     }
 
     pub fn remove<'i, 'k>(&'i self, key: &'k [u8]) -> Option<RemoveEntry<'i, 'k>> {
@@ -86,7 +94,7 @@ impl Index {
             Entry::Occupied(_) => return None,
         };
 
-        InsertEntry::new(self, key, lock)
+        Some(InsertEntry::new(self, key, lock))
     }
 }
 

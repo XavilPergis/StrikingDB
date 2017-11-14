@@ -45,7 +45,7 @@ impl<'i, 'k> Deref for LookupEntry<'i, 'k> {
     type Target = FilePointer;
 
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &*self.0
     }
 }
 
@@ -59,7 +59,7 @@ impl<'i, 'k> UpdateEntry<'i, 'k> {
         key: &'k [u8],
         entry: &CopyRwLock<FilePointer>,
     ) -> Self {
-        LookupEntry(IndexEntry::new(index, key, entry, true))
+        UpdateEntry(IndexEntry::new(index, key, entry, true))
     }
 }
 
@@ -67,13 +67,13 @@ impl<'i, 'k> Deref for UpdateEntry<'i, 'k> {
     type Target = FilePointer;
 
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &*self.0
     }
 }
 
 impl<'i, 'k> DerefMut for UpdateEntry<'i, 'k> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
+        &mut *self.0
     }
 }
 
@@ -87,7 +87,7 @@ impl<'i, 'k> RemoveEntry<'i, 'k> {
         key: &'k [u8],
         entry: &CopyRwLock<FilePointer>,
     ) -> Self {
-        RemoveEntry(IndexEntryMut::new(index, key, entry))
+        RemoveEntry(IndexEntryMut::new(index, key, Some(entry)))
     }
 }
 
@@ -95,7 +95,13 @@ impl<'i, 'k> Deref for RemoveEntry<'i, 'k> {
     type Target = FilePointer;
 
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &self.0.unwrap()
+    }
+}
+
+impl<'i, 'k> Drop for RemoveEntry<'i, 'k> {
+    fn drop(&mut self) {
+        *self.0 = None;
     }
 }
 
@@ -109,7 +115,7 @@ impl<'i, 'k> InsertEntry<'i, 'k> {
         key: &'k [u8],
         entry: &CopyRwLock<FilePointer>,
     ) -> Self {
-        InsertEntry::new(IndexEntry::new(index, key, entry, true))
+        InsertEntry(IndexEntry::new(index, key, entry, true))
     }
 }
 
@@ -117,13 +123,13 @@ impl<'i, 'k> Deref for InsertEntry<'i, 'k> {
     type Target = FilePointer;
 
     fn deref(&self) -> &Self::Target {
-        &self.value
+        &*self.0
     }
 }
 
 impl<'i, 'k> DerefMut for InsertEntry<'i, 'k> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.value
+        &mut *self.0
     }
 }
 
